@@ -104,10 +104,8 @@ export function AssumptionCard({
             </button>
           </div>
 
-          <div className="flex items-center gap-3 text-sm text-base-content opacity-60">
-            <span>
-              {voteSummary.total} {voteSummary.total === 1 ? 'vote' : 'votes'}
-            </span>
+          <div className="w-full mt-3 flex items-center text-sm text-base-content/70">
+            <span className="flex-1" aria-hidden="true"></span>
             {votes.length > 0 && (
               <button
                 type="button"
@@ -120,6 +118,9 @@ export function AssumptionCard({
                 </span>
               </button>
             )}
+            <span className="flex-1 text-right">
+              {voteSummary.total} {voteSummary.total === 1 ? 'vote' : 'votes'}
+            </span>
           </div>
           {votes.length > 0 && showLog && (
             <div className="mt-3 border-t border-base-200 pt-3 w-full">
