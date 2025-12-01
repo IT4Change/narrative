@@ -117,8 +117,7 @@ export function useOpinionGraph(
       const assumption = d.assumptions[assumptionId];
       if (!assumption) return;
 
-      const voterName =
-        d.identities?.[currentUserDid]?.displayName || d.identity.displayName;
+      const voterName = d.identity.displayName;
 
       // Find existing vote by current user
       const existingVoteId = assumption.voteIds.find((voteId) => {
@@ -263,13 +262,6 @@ export function useOpinionGraph(
     docHandle.change((d) => {
       if (updates.displayName !== undefined) {
         d.identity.displayName = updates.displayName;
-        d.identities = d.identities || {};
-        d.identities[currentUserDid] = d.identities[currentUserDid] || {};
-        if (updates.displayName === '') {
-          delete d.identities[currentUserDid].displayName;
-        } else {
-          d.identities[currentUserDid].displayName = updates.displayName;
-        }
         // Propagate to current user's votes so name shows in logs/tooltips
         Object.values(d.votes).forEach((vote) => {
           if (vote.voterDid === currentUserDid) {

@@ -83,12 +83,9 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
   };
 
   useEffect(() => {
-    const name =
-      narri?.doc.identities?.[currentUserDid]?.displayName ??
-      narri?.doc.identity.displayName ??
-      '';
+    const name = narri?.doc.identity.displayName ?? '';
     setNameInput(name);
-  }, [narri?.doc.identities, narri?.doc.identity.displayName, currentUserDid]);
+  }, [narri?.doc.identity.displayName]);
 
   const handleExportIdentity = () => {
     const savedIdentity = localStorage.getItem('narriIdentity');
