@@ -279,12 +279,12 @@ export function MainView({ documentId, currentUserDid, onResetId, onNewBoard }: 
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto p-4 max-w-6xl flex-1 overflow-auto w-full">
+      <div className="container mx-auto p-10 pb-24 max-w-6xl flex-1 overflow-auto w-full">
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div className="flex flex-wrap gap-2">
               {activeTagFilter ? (
-                <div className="badge badge-primary gap-1">
+                <div className="badge badge-primary gap-1 p-4">
                   <span>{narrative.tags.find((t) => t.id === activeTagFilter)?.name ?? 'Tag'}</span>
                   <button
                     className="btn btn-ghost btn-xs"

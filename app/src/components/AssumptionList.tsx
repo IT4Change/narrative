@@ -45,7 +45,7 @@ export function AssumptionList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       {validAssumptions.map((assumption) => (
         <AssumptionCard
           key={assumption.id}
