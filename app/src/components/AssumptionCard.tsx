@@ -132,10 +132,9 @@ export function AssumptionCard({
     return [...voteActivities, ...editActivities].sort((a, b) => b.ts - a.ts);
   }, [uniqueVotes, edits]);
 
-  const resolveName = (did: string, fallback?: string) => {
-    const matchingVote = uniqueVotes.find((v) => v.voterDid === did && v.voterName);
-    if (matchingVote?.voterName) return matchingVote.voterName;
-    return fallback ?? did;
+  const resolveName = (did: string) => {
+    // Dynamic lookup from identities map
+    return doc?.identities?.[did]?.displayName || did;
   };
 
   return (
@@ -173,7 +172,7 @@ export function AssumptionCard({
 
         {/* Vote Bar */}
         <div className="mt-4">
-          <VoteBar summary={voteSummary} votes={uniqueVotes} />
+          <VoteBar summary={voteSummary} votes={uniqueVotes} doc={doc} />
         </div>
 
         {/* Vote Buttons */}
@@ -263,7 +262,7 @@ export function AssumptionCard({
 
                   if (item.kind === 'vote') {
                     const vote = item.vote;
-                    const hasName = Boolean(vote.voterName);
+                    const voterName = resolveName(vote.voterDid);
                     return (
                       <div key={`vote-${vote.id}`} className="flex flex-col gap-1 text-sm border border-base-200 rounded-lg p-2">
                         <div className="flex items-center gap-2 justify-between">
@@ -281,7 +280,7 @@ export function AssumptionCard({
                             </span>
                             <div className="flex flex-col leading-tight">
                               <span className="font-semibold">
-                                {hasName ? vote.voterName : vote.voterDid}
+                                {voterName}
                               </span>
                               <span className="text-xs text-base-content/60 break-all">
                                 {vote.voterDid}
@@ -300,7 +299,7 @@ export function AssumptionCard({
                   }
 
                   const edit = item.edit;
-                  const name = resolveName(edit.editorDid, edit.editorName);
+                  const name = resolveName(edit.editorDid);
                   const tagsChanged =
                     (edit.previousTags && edit.previousTags.join('|')) !==
                     (edit.newTags && edit.newTags.join('|'));

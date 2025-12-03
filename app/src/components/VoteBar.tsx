@@ -1,15 +1,16 @@
-import { Vote, VoteSummary } from 'narrative-ui';
+import { Vote, VoteSummary, OpinionGraphDoc } from 'narrative-ui';
 
 interface VoteBarProps {
   summary: VoteSummary;
   votes: Vote[];
+  doc?: OpinionGraphDoc;
 }
 
 /**
  * Visual representation of vote distribution
  * Shows a horizontal bar with green/yellow/red sections
  */
-export function VoteBar({ summary, votes }: VoteBarProps) {
+export function VoteBar({ summary, votes, doc }: VoteBarProps) {
   const { green, yellow, red, total } = summary;
 
   if (total === 0) {
@@ -29,7 +30,10 @@ export function VoteBar({ summary, votes }: VoteBarProps) {
     if (matching.length === 0) return 'Keine Stimmen';
 
     return [
-      ...matching.map((v) => `${v.voterName ?? v.voterDid} (${v.voterDid})`),
+      ...matching.map((v) => {
+        const name = doc?.identities?.[v.voterDid]?.displayName || v.voterDid;
+        return `${name} (${v.voterDid})`;
+      }),
     ].join('\n');
   };
 

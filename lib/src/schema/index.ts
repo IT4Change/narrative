@@ -52,7 +52,6 @@ export interface Vote {
   id: string;
   assumptionId: string;
   voterDid: string;
-  voterName?: string;
   value: VoteValue;
   createdAt: number;
   updatedAt: number;
@@ -69,7 +68,6 @@ export interface EditEntry {
   id: string;
   assumptionId: string;
   editorDid: string;
-  editorName?: string;
   type: 'create' | 'edit';
   previousSentence: string;
   newSentence: string;
@@ -90,7 +88,6 @@ export interface Assumption {
   id: string;
   sentence: string;
   createdBy: string; // DID
-  creatorName?: string;
   createdAt: number;
   updatedAt: number;
   tagIds: string[];

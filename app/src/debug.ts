@@ -6,6 +6,13 @@
 import { OpinionGraphDoc } from 'narrative-ui';
 
 /**
+ * Helper to resolve DID to display name
+ */
+function resolveName(doc: OpinionGraphDoc, did: string): string {
+  return doc.identities?.[did]?.displayName || did;
+}
+
+/**
  * Expose the document to the browser console for debugging
  * Call this from your component: exposeDocToConsole(doc)
  */
@@ -54,14 +61,14 @@ export function printDocStructure(doc: OpinionGraphDoc | null) {
 
   console.group('💭 Assumptions (' + Object.keys(doc.assumptions).length + ')');
   Object.values(doc.assumptions).forEach(a => {
-    console.log(`"${a.sentence}" by ${a.creatorName || a.createdBy}`);
+    console.log(`"${a.sentence}" by ${resolveName(doc, a.createdBy)}`);
     console.log(`  Tags: ${a.tagIds.length}, Votes: ${a.voteIds.length}, Edits: ${a.editLogIds.length}`);
   });
   console.groupEnd();
 
   console.group('🗳️  Votes (' + Object.keys(doc.votes).length + ')');
   console.table(Object.values(doc.votes).map(v => ({
-    voter: v.voterName || v.voterDid.substring(0, 20),
+    voter: resolveName(doc, v.voterDid).substring(0, 20),
     value: v.value,
     assumption: doc.assumptions[v.assumptionId]?.sentence.substring(0, 40)
   })));
@@ -79,7 +86,7 @@ export function printDocStructure(doc: OpinionGraphDoc | null) {
     .sort((a, b) => b.createdAt - a.createdAt)
     .forEach(e => {
       const time = new Date(e.createdAt).toLocaleString();
-      console.log(`[${e.type}] ${e.editorName || e.editorDid} at ${time}`);
+      console.log(`[${e.type}] ${resolveName(doc, e.editorDid)} at ${time}`);
       if (e.type === 'edit') {
         console.log(`  Old: "${e.previousSentence}"`);
         console.log(`  New: "${e.newSentence}"`);
@@ -135,7 +142,7 @@ export function analyzeVotes(doc: OpinionGraphDoc | null) {
   const votesByUser = new Map<string, { green: number; yellow: number; red: number }>();
 
   Object.values(doc.votes).forEach(vote => {
-    const name = vote.voterName || vote.voterDid;
+    const name = resolveName(doc, vote.voterDid);
     if (!votesByUser.has(name)) {
       votesByUser.set(name, { green: 0, yellow: 0, red: 0 });
     }
@@ -196,7 +203,7 @@ export function traceAssumption(doc: OpinionGraphDoc | null, assumptionId: strin
   assumption.voteIds.forEach(voteId => {
     const vote = doc.votes[voteId];
     if (vote) {
-      console.log(`- ${vote.value} by ${vote.voterName || vote.voterDid}`);
+      console.log(`- ${vote.value} by ${resolveName(doc, vote.voterDid)}`);
     }
   });
   console.groupEnd();
@@ -205,7 +212,7 @@ export function traceAssumption(doc: OpinionGraphDoc | null, assumptionId: strin
   assumption.editLogIds.forEach(editId => {
     const edit = doc.edits[editId];
     if (edit) {
-      console.log(`- [${edit.type}] by ${edit.editorName || edit.editorDid}`);
+      console.log(`- [${edit.type}] by ${resolveName(doc, edit.editorDid)}`);
       if (edit.type === 'edit') {
         console.log(`  "${edit.previousSentence}" → "${edit.newSentence}"`);
       }

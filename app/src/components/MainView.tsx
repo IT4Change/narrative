@@ -46,7 +46,7 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
-  const logoUrl = `${import.meta.env.BASE_URL}narrative.png`;
+  const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
 
   useEffect(() => {
     if (narrative?.doc) {
@@ -218,7 +218,7 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
       <div className="navbar bg-base-100 shadow-lg sticky top-0 z-20">
         <div className="flex-1">
           <a className="btn btn-ghost text-xl flex items-center gap-2">
-            <img src={logoUrl} alt="Narrative" className="h-12 pb-2" />
+            <img src={logoUrl} alt="Narrative" className="h-12 pb-2 text-current" />
             <span>Narrative</span>
           </a>
         </div>

@@ -98,14 +98,12 @@ export function useOpinionGraph(
     const id = generateId();
     const now = Date.now();
     const editId = generateId();
-    const creatorName = displayName || doc.identities?.[currentUserDid]?.displayName || 'Anonymous';
 
     // Create assumption object with complete, final data
     const assumptionData: any = {
       id,
       sentence,
       createdBy: currentUserDid,
-      creatorName,
       createdAt: now,
       updatedAt: now,
       tagIds,  // Known tag IDs from Step 1
@@ -117,7 +115,6 @@ export function useOpinionGraph(
       id: editId,
       assumptionId: id,
       editorDid: currentUserDid,
-      editorName: creatorName,
       type: 'create',
       previousSentence: '',
       newSentence: sentence,
@@ -198,12 +195,6 @@ export function useOpinionGraph(
         newTags: tagNames,
       };
 
-      const editorName =
-        d.identities?.[currentUserDid]?.displayName || 'Anonymous';
-      if (editorName) {
-        entry.editorName = editorName;
-      }
-
       d.edits[editId] = entry;
       assumption.editLogIds.push(editId);
 
@@ -238,7 +229,6 @@ export function useOpinionGraph(
    */
   const setVote = async (assumptionId: string, value: VoteValue) => {
     const now = Date.now();
-    const voterName = displayName || doc.identities?.[currentUserDid]?.displayName || 'Anonymous';
 
     // Find existing vote by current user
     const assumption = doc.assumptions[assumptionId];
@@ -258,7 +248,6 @@ export function useOpinionGraph(
         id: existingVoteId,
         assumptionId,
         voterDid: currentUserDid,
-        voterName,
         value,
         createdAt: existingVote.createdAt,
         updatedAt: now,
@@ -278,7 +267,6 @@ export function useOpinionGraph(
         const vote = d.votes[existingVoteId];
         if (vote) {
           vote.value = value;
-          if (voterName) vote.voterName = voterName;
           vote.updatedAt = now;
           if (updatedVoteData.signature) {
             vote.signature = updatedVoteData.signature;
@@ -293,7 +281,6 @@ export function useOpinionGraph(
         id: voteId,
         assumptionId,
         voterDid: currentUserDid,
-        voterName,
         value,
         createdAt: now,
         updatedAt: now,
@@ -452,41 +439,8 @@ export function useOpinionGraph(
         } else {
           profile.displayName = updates.displayName;
         }
-        // Propagate to current user's votes so name shows in logs/tooltips
-        // NOTE: This is denormalization for display performance (avoids lookup on every vote render)
-        // PERFORMANCE: O(n) where n = total votes. Could be slow with 1000s of votes.
-        // TODO: Future optimization options:
-        //   1. Create index: doc.votesByUser[did] = voteIds[] for O(1) lookup
-        //   2. Remove denormalization: compute names on-read from doc.identities[did]
-        Object.values(d.votes).forEach((vote) => {
-          if (vote.voterDid === currentUserDid) {
-            if (updates.displayName === '') {
-              delete vote.voterName;
-            } else {
-              vote.voterName = updates.displayName;
-            }
-          }
-        });
-        // Propagate to current user's assumptions (creatorName)
-        Object.values(d.assumptions).forEach((assumption) => {
-          if (assumption.createdBy === currentUserDid) {
-            if (updates.displayName === '') {
-              delete assumption.creatorName;
-            } else {
-              assumption.creatorName = updates.displayName;
-            }
-          }
-        });
-        // Propagate to current user's edits (editorName)
-        Object.values(d.edits).forEach((edit) => {
-          if (edit.editorDid === currentUserDid) {
-            if (updates.displayName === '') {
-              delete edit.editorName;
-            } else {
-              edit.editorName = updates.displayName;
-            }
-          }
-        });
+        // Names are now looked up dynamically from doc.identities[did].displayName
+        // No propagation needed - changes are instantly visible in UI
       }
       if (updates.avatarUrl !== undefined) {
         const profile = d.identities[currentUserDid];

@@ -227,6 +227,13 @@ export function extractJwsPayload(jws: string): unknown | null {
 /**
  * Sign an entity (Assumption, Vote, Tag, EditEntry) for storage
  *
+ * Excludes mutable display fields from signature:
+ * - signature, publicKey (metadata)
+ * - voterName, creatorName, editorName (mutable cache fields)
+ *
+ * Display names can change when user updates identity, but signatures
+ * should remain valid since the DID (voterDid, createdBy, editorDid) is immutable.
+ *
  * @param entity - The entity to sign (must have id, createdAt, and other relevant fields)
  * @param privateKeyBase64 - Base64-encoded private key
  * @returns JWS signature string
@@ -235,8 +242,8 @@ export async function signEntity(
   entity: Record<string, unknown>,
   privateKeyBase64: string
 ): Promise<string> {
-  // Create canonical payload (exclude signature and publicKey fields)
-  const { signature, publicKey, ...payload } = entity;
+  // Create canonical payload (exclude metadata and mutable display fields)
+  const { signature, publicKey, voterName, creatorName, editorName, ...payload } = entity;
 
   return await signJws(payload, privateKeyBase64);
 }
@@ -266,6 +273,8 @@ function canonicalStringify(obj: unknown): string {
 /**
  * Verify an entity signature
  *
+ * Excludes the same mutable fields as signEntity() when comparing.
+ *
  * @param entity - The entity with signature field
  * @param publicKeyBase64 - Base64-encoded public key for verification
  * @returns Verification result
@@ -278,8 +287,8 @@ export async function verifyEntitySignature(
     return { valid: false, error: 'No signature found' };
   }
 
-  // Create canonical payload (same as signing)
-  const { signature, publicKey, ...payload } = entity;
+  // Create canonical payload (same as signing - exclude metadata and mutable display fields)
+  const { signature, publicKey, voterName, creatorName, editorName, ...payload } = entity;
 
   const result = await verifyJws(entity.signature, publicKeyBase64);
 
