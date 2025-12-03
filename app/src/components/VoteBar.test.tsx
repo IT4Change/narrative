@@ -73,7 +73,7 @@ describe('VoteBar', () => {
         },
       ];
 
-      const { container } = render(<VoteBar summary={summary} votes={votes} />);
+      render(<VoteBar summary={summary} votes={votes} />);
 
       // Check counts in sections
       expect(screen.getByText('3')).toBeInTheDocument(); // green
@@ -104,7 +104,7 @@ describe('VoteBar', () => {
         updatedAt: Date.now(),
       }));
 
-      const { container } = render(<VoteBar summary={summary} votes={votes} />);
+      render(<VoteBar summary={summary} votes={votes} />);
 
       // Should show green section
       expect(screen.getByText('5')).toBeInTheDocument();
@@ -342,7 +342,7 @@ describe('VoteBar', () => {
       const tooltips = container.querySelectorAll('.tooltip');
       expect(tooltips).toHaveLength(3);
 
-      tooltips.forEach((tooltip) => {
+      tooltips.forEach((tooltip: Element) => {
         expect(tooltip).toHaveAttribute('tabIndex', '0');
       });
     });

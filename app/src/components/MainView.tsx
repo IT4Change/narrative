@@ -4,8 +4,9 @@ import { useOpinionGraph, type OpinionGraphDoc } from 'narrative-ui';
 import { AssumptionList } from './AssumptionList';
 import { CreateAssumptionModal } from './CreateAssumptionModal';
 import { useEffect, useMemo, useState } from 'react';
-import Avatar from 'boring-avatars';
 import { exposeDocToConsole } from '../debug';
+import { UserAvatar } from './UserAvatar';
+import { processImageFile } from '../utils/imageProcessing';
 
 
 interface MainViewProps {
@@ -16,17 +17,6 @@ interface MainViewProps {
   displayName?: string;
   onResetId: () => void;
   onNewBoard: () => void;
-}
-
-// Simple hash function to create more distinct avatar seeds
-function hashString(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return Math.abs(hash).toString(36);
 }
 
 /**
@@ -48,6 +38,9 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [hiddenUserDids, setHiddenUserDids] = useState<Set<string>>(new Set());
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarSizeKB, setAvatarSizeKB] = useState<number>(0);
+  const [avatarError, setAvatarError] = useState<string>('');
   const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
 
   useEffect(() => {
@@ -206,6 +199,41 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
     input.click();
   };
 
+  const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarError('');
+
+    try {
+      const { dataUrl, sizeKB } = await processImageFile(file, 128, 0.8);
+      setAvatarPreview(dataUrl);
+      setAvatarSizeKB(sizeKB);
+
+      if (sizeKB > 50) {
+        setAvatarError(`Warnung: Avatar ist ${sizeKB}KB groß (empfohlen: max. 50KB). Möglicherweise langsame Synchronisation.`);
+      }
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : 'Fehler beim Verarbeiten des Bildes');
+      setAvatarPreview(null);
+    }
+  };
+
+  const handleSaveAvatar = () => {
+    if (!avatarPreview) return;
+    narrative.updateIdentity({ avatarUrl: avatarPreview });
+    setAvatarPreview(null);
+    setAvatarSizeKB(0);
+    setAvatarError('');
+  };
+
+  const handleRemoveAvatar = () => {
+    narrative.updateIdentity({ avatarUrl: '' });
+    setAvatarPreview(null);
+    setAvatarSizeKB(0);
+    setAvatarError('');
+  };
+
   const handleSaveName = () => {
     const next = nameInput.trim();
     if (!next) return;
@@ -308,16 +336,15 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
                 d="M12 6v12m6-6H6"
               />
             </svg>
-            New Board
+            New
           </button>
           <div className="dropdown dropdown-end">
             <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar">
               <div className="w-12 rounded-full overflow-hidden">
-                <Avatar
+                <UserAvatar
+                  did={currentUserDid}
+                  avatarUrl={narrative?.doc?.identities?.[currentUserDid]?.avatarUrl}
                   size={48}
-                  name={hashString(currentUserDid)}
-                  variant="marble"
-                  colors={["#fdbf5c", "#f69a0b", "#d43a00", "#9b0800", "#1d2440"]}
                 />
               </div>
             </div>
@@ -465,19 +492,72 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
       {showIdentityModal && (
         <div className="modal modal-open">
           <div className="modal-box max-w-md space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-full overflow-hidden">
-                <Avatar
-                  size={56}
-                  name={hashString(currentUserDid)}
-                  variant="marble"
-                  colors={["#fdbf5c", "#f69a0b", "#d43a00", "#9b0800", "#1d2440"]}
+            <h3 className="font-bold text-lg">Dein Profil</h3>
+
+            {/* Avatar Section */}
+            <div className="flex flex-col items-center gap-3 p-4 bg-base-200 rounded-lg">
+              <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-primary ring-offset-2 ring-offset-base-100">
+                <UserAvatar
+                  did={currentUserDid}
+                  avatarUrl={avatarPreview || narrative?.doc?.identities?.[currentUserDid]?.avatarUrl}
+                  size={96}
                 />
               </div>
-              <div>
-                <div className="text-sm text-base-content/70">Deine DID</div>
-                <code className="text-xs break-all">{currentUserDid}</code>
+
+              <div className="flex flex-col gap-2 w-full">
+                <label htmlFor="avatar-upload" className="btn btn-sm btn-outline w-full">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  Avatar hochladen
+                </label>
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarFileSelect}
+                />
+
+                {avatarPreview && (
+                  <button className="btn btn-sm btn-primary w-full" onClick={handleSaveAvatar}>
+                    Avatar speichern ({avatarSizeKB}KB)
+                  </button>
+                )}
+
+                {(narrative?.doc?.identities?.[currentUserDid]?.avatarUrl || avatarPreview) && (
+                  <button className="btn btn-sm btn-ghost w-full" onClick={handleRemoveAvatar}>
+                    Avatar entfernen
+                  </button>
+                )}
+
+                {avatarError && (
+                  <div className={`text-xs p-2 rounded ${avatarSizeKB > 50 ? 'bg-warning/20 text-warning' : 'bg-error/20 text-error'}`}>
+                    {avatarError}
+                  </div>
+                )}
+
+                <div className="text-xs text-base-content/60 text-center">
+                  128x128px, max. 50KB empfohlen
+                </div>
               </div>
+            </div>
+
+            {/* DID Section */}
+            <div className="p-3 bg-base-200 rounded-lg">
+              <div className="text-sm text-base-content/70 mb-1">Deine DID</div>
+              <code className="text-xs break-all">{currentUserDid}</code>
             </div>
 
             <div className="form-control">
@@ -569,11 +649,10 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
                   } ${hiddenUserDids.has(did) ? 'opacity-50' : ''}`}
                 >
                   <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                    <Avatar
+                    <UserAvatar
+                      did={did}
+                      avatarUrl={profile.avatarUrl}
                       size={48}
-                      name={hashString(did)}
-                      variant="marble"
-                      colors={["#fdbf5c", "#f69a0b", "#d43a00", "#9b0800", "#1d2440"]}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
