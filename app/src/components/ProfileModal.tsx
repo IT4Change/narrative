@@ -88,6 +88,25 @@ export function ProfileModal({
   return (
     <div className="modal modal-open">
       <div className="modal-box max-w-md space-y-4">
+        <button
+          className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+          onClick={onClose}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
         <h3 className="font-bold text-lg">Dein Profil</h3>
 
         {/* Avatar Section */}
@@ -143,17 +162,7 @@ export function ProfileModal({
                 {avatarError}
               </div>
             )}
-
-            <div className="text-xs text-base-content/60 text-center">
-              128x128px, max. 50KB empfohlen
-            </div>
           </div>
-        </div>
-
-        {/* DID Section */}
-        <div className="p-3 bg-base-200 rounded-lg">
-          <div className="text-sm text-base-content/70 mb-1">Deine DID</div>
-          <code className="text-xs break-all">{currentUserDid}</code>
         </div>
 
         <div className="form-control">
@@ -167,18 +176,24 @@ export function ProfileModal({
             onChange={(e) => setNameInput(e.target.value)}
             placeholder="Dein Name"
           />
-          <label className="label">
-            <span className="label-text-alt text-base-content/60">
-              Wird lokal gespeichert und mit deinem DID geteilt.
-            </span>
-          </label>
-          <button className="btn btn-primary btn-sm w-fit mt-2" onClick={handleSaveName}>
-            Speichern
-          </button>
+          <div className="flex justify-between mt-5">
+            <button className="btn" onClick={onClose}>
+              Schließen
+            </button>
+            <button className="btn btn-primary" onClick={handleSaveName}>
+              Speichern
+            </button>
+          </div>
         </div>
 
         <div className="divider">Identity</div>
         <div className="flex flex-col gap-2">
+                  {/* DID Section */}
+        <div className="p-3 bg-base-200 rounded-lg">
+          <div className="text-sm text-base-content/70 mb-1">Deine DID</div>
+          <code className="text-xs break-all">{currentUserDid}</code>
+        </div>
+
           <button className="btn btn-outline btn-sm" onClick={onExportIdentity}>
             Export Identity
           </button>
@@ -187,12 +202,6 @@ export function ProfileModal({
           </button>
           <button className="btn btn-error btn-sm" onClick={onResetId}>
             Reset ID
-          </button>
-        </div>
-
-        <div className="modal-action">
-          <button className="btn" onClick={onClose}>
-            Schließen
           </button>
         </div>
       </div>
