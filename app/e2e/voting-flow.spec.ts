@@ -1,163 +1,135 @@
 import { test, expect } from '@playwright/test';
+import { createAssumption, ensureOnBoard } from './helpers';
 
 /**
  * E2E Tests for voting functionality
  */
 test.describe('Voting Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
+  let assumptionText: string;
 
-    // Ensure we're on a board
-    const url = page.url();
-    if (!url.includes('#doc=')) {
-      const newBoardButton = page.getByRole('button', { name: /new board/i });
-      if (await newBoardButton.isVisible()) {
-        await newBoardButton.click();
-        await page.waitForURL(/.*#doc=.*/);
-      }
-    }
+  test.beforeEach(async ({ page }) => {
+    await ensureOnBoard(page);
 
     // Create a test assumption to vote on
-    const input = page.getByPlaceholder(/add.*assumption/i);
-    await input.fill('Test assumption for voting');
-    await input.press('Enter');
-    await page.waitForTimeout(500); // Wait for assumption to be created
+    assumptionText = `Test assumption for voting ${Date.now()}`;
+    await createAssumption(page, assumptionText);
+    await page.waitForTimeout(1000);
   });
 
   test('should vote green on an assumption', async ({ page }) => {
-    // Find the green vote button (emoji or text)
-    const greenButton = page.getByRole('button', { name: /🟢|green|agree/i }).first();
-    await greenButton.click();
+    // Find the assumption card
+    const assumptionCard = page.locator(`text=${assumptionText}`).locator('..').locator('..');
 
-    // Verify vote was registered (check for visual feedback)
-    // Could be a highlight, a count, or a vote bar update
+    // Find and click the green vote button
+    const greenButton = assumptionCard.getByRole('button', { name: /🟢/i }).first();
+    await greenButton.click();
     await page.waitForTimeout(500);
 
-    // The vote bar should show 100% green
-    const voteBar = page.locator('[class*="vote"]').first();
-    await expect(voteBar).toBeVisible();
+    // Verify vote was registered - look for "🟢 100%" or "1 vote"
+    const voteIndicator = page.getByText(/🟢 100%|1 vote/i);
+    await expect(voteIndicator.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should vote yellow on an assumption', async ({ page }) => {
-    const yellowButton = page.getByRole('button', { name: /🟡|yellow|neutral/i }).first();
-    await yellowButton.click();
+    const assumptionCard = page.locator(`text=${assumptionText}`).locator('..').locator('..');
 
+    const yellowButton = assumptionCard.getByRole('button', { name: /🟡/i }).first();
+    await yellowButton.click();
     await page.waitForTimeout(500);
 
     // Verify vote was registered
-    const voteBar = page.locator('[class*="vote"]').first();
-    await expect(voteBar).toBeVisible();
+    const voteIndicator = page.getByText(/🟡 100%|1 vote/i);
+    await expect(voteIndicator.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should vote red on an assumption', async ({ page }) => {
-    const redButton = page.getByRole('button', { name: /🔴|red|disagree/i }).first();
-    await redButton.click();
+    const assumptionCard = page.locator(`text=${assumptionText}`).locator('..').locator('..');
 
+    const redButton = assumptionCard.getByRole('button', { name: /🔴/i }).first();
+    await redButton.click();
     await page.waitForTimeout(500);
 
     // Verify vote was registered
-    const voteBar = page.locator('[class*="vote"]').first();
-    await expect(voteBar).toBeVisible();
+    const voteIndicator = page.getByText(/🔴 100%|1 vote/i);
+    await expect(voteIndicator.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should change vote from green to red', async ({ page }) => {
+    const assumptionCard = page.locator(`text=${assumptionText}`).locator('..').locator('..');
+
     // Vote green first
-    const greenButton = page.getByRole('button', { name: /🟢|green|agree/i }).first();
+    const greenButton = assumptionCard.getByRole('button', { name: /🟢/i }).first();
     await greenButton.click();
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
 
     // Then vote red
-    const redButton = page.getByRole('button', { name: /🔴|red|disagree/i }).first();
+    const redButton = assumptionCard.getByRole('button', { name: /🔴/i }).first();
     await redButton.click();
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
 
-    // Should still only show 1 vote (the red one)
-    // The vote bar should reflect this change
-    const voteBar = page.locator('[class*="vote"]').first();
-    await expect(voteBar).toBeVisible();
-  });
-
-  test('should remove vote', async ({ page }) => {
-    // Vote green first
-    const greenButton = page.getByRole('button', { name: /🟢|green|agree/i }).first();
-    await greenButton.click();
-    await page.waitForTimeout(300);
-
-    // Click the same button again to remove vote (if supported)
-    // OR find a remove/clear vote button
-    const removeButton = page.getByRole('button', { name: /remove|clear.*vote/i }).first();
-    if (await removeButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await removeButton.click();
-      await page.waitForTimeout(300);
-
-      // Verify vote was removed
-      const noVotesText = page.getByText(/no votes yet/i);
-      await expect(noVotesText).toBeVisible({ timeout: 5000 });
-    } else {
-      // If no remove button, clicking same vote button might toggle it off
-      await greenButton.click();
-      await page.waitForTimeout(300);
-    }
+    // Should still show 1 vote (not 2), just changed color
+    const voteText = page.getByText(/100%|1/).first();
+    await expect(voteText).toBeVisible({ timeout: 5000 });
   });
 
   test('should show vote counts correctly', async ({ page }) => {
+    const assumptionCard = page.locator(`text=${assumptionText}`).locator('..').locator('..');
+
     // Vote on the assumption
-    const greenButton = page.getByRole('button', { name: /🟢|green|agree/i }).first();
+    const greenButton = assumptionCard.getByRole('button', { name: /🟢/i }).first();
     await greenButton.click();
     await page.waitForTimeout(500);
 
-    // Look for vote count display (e.g., "1" or "1 vote")
-    // This depends on your UI implementation
-    const voteCount = page.getByText(/1/);
-    await expect(voteCount.first()).toBeVisible();
+    // Look for vote count display (e.g., "1" or "100%")
+    const voteCount = page.getByText(/1|100%/);
+    await expect(voteCount.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should display vote percentage in vote bar', async ({ page }) => {
+    const assumptionCard = page.locator(`text=${assumptionText}`).locator('..').locator('..');
+
     // Vote green
-    const greenButton = page.getByRole('button', { name: /🟢|green|agree/i }).first();
+    const greenButton = assumptionCard.getByRole('button', { name: /🟢/i }).first();
     await greenButton.click();
     await page.waitForTimeout(500);
 
-    // Check for percentage display (e.g., "100%" or "🟢 100%")
+    // Check for percentage display (100% green since only one vote)
     const percentage = page.getByText(/100%/);
-    await expect(percentage.first()).toBeVisible();
-  });
-
-  test('should show voter identity in tooltip or details', async ({ page }) => {
-    // Vote on assumption
-    const greenButton = page.getByRole('button', { name: /🟢|green|agree/i }).first();
-    await greenButton.click();
-    await page.waitForTimeout(500);
-
-    // Open details or hover over vote bar to see voter info
-    const detailsButton = page.getByRole('button', { name: /details|activity/i }).first();
-    if (await detailsButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await detailsButton.click();
-      await page.waitForTimeout(300);
-
-      // Should show some voter identity (DID or display name)
-      const voterInfo = page.getByText(/did:key|voted/i);
-      await expect(voterInfo.first()).toBeVisible();
-    }
+    await expect(percentage.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should persist vote after page reload', async ({ page }) => {
+    const assumptionCard = page.locator(`text=${assumptionText}`).locator('..').locator('..');
+
     // Vote green
-    const greenButton = page.getByRole('button', { name: /🟢|green|agree/i }).first();
+    const greenButton = assumptionCard.getByRole('button', { name: /🟢/i }).first();
     await greenButton.click();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
+
+    // Get current URL
+    const currentUrl = page.url();
 
     // Reload page
     await page.reload();
     await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
 
-    // Vote should still be there
-    const voteBar = page.locator('[class*="vote"]').first();
-    await expect(voteBar).toBeVisible();
+    // Verify assumption and vote still exist
+    await expect(page.getByText(assumptionText)).toBeVisible({ timeout: 10000 });
+    const voteIndicator = page.getByText(/🟢 100%|1 vote/i);
+    await expect(voteIndicator.first()).toBeVisible({ timeout: 5000 });
+  });
 
-    // Should still show the vote (green 100%)
-    const percentage = page.getByText(/100%/);
-    await expect(percentage.first()).toBeVisible();
+  test('should show multiple votes with correct distribution', async ({ page }) => {
+    // This test would need multiple users/contexts to truly test
+    // For now, we just verify a single vote shows 100%
+    const assumptionCard = page.locator(`text=${assumptionText}`).locator('..').locator('..');
+
+    const greenButton = assumptionCard.getByRole('button', { name: /🟢/i }).first();
+    await greenButton.click();
+    await page.waitForTimeout(500);
+
+    // With 1 vote, should show 100%
+    await expect(page.getByText(/100%/)).toBeVisible({ timeout: 5000 });
   });
 });

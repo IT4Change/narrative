@@ -219,14 +219,6 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
     }
   };
 
-  const handleSaveAvatar = () => {
-    if (!avatarPreview) return;
-    narrative.updateIdentity({ avatarUrl: avatarPreview });
-    setAvatarPreview(null);
-    setAvatarSizeKB(0);
-    setAvatarError('');
-  };
-
   const handleRemoveAvatar = () => {
     narrative.updateIdentity({ avatarUrl: '' });
     setAvatarPreview(null);
@@ -237,13 +229,25 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
   const handleSaveName = () => {
     const next = nameInput.trim();
     if (!next) return;
-    narrative.updateIdentity({ displayName: next });
+
+    // Save both display name and avatar (if changed)
+    narrative.updateIdentity({
+      displayName: next,
+      ...(avatarPreview ? { avatarUrl: avatarPreview } : {})
+    });
+
     const storedIdentity = localStorage.getItem('narrativeIdentity');
     if (storedIdentity) {
       const parsed = JSON.parse(storedIdentity);
       parsed.displayName = next;
       localStorage.setItem('narrativeIdentity', JSON.stringify(parsed));
     }
+
+    // Reset avatar preview after saving
+    setAvatarPreview(null);
+    setAvatarSizeKB(0);
+    setAvatarError('');
+
     setShowIdentityModal(false);
   };
 
@@ -531,9 +535,9 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
                 />
 
                 {avatarPreview && (
-                  <button className="btn btn-sm btn-primary w-full" onClick={handleSaveAvatar}>
-                    Avatar speichern ({avatarSizeKB}KB)
-                  </button>
+                  <p className="text-xs text-base-content/60 mt-2">
+                    Avatar-Vorschau ({avatarSizeKB}KB) - Wird beim Speichern übernommen
+                  </p>
                 )}
 
                 {(narrative?.doc?.identities?.[currentUserDid]?.avatarUrl || avatarPreview) && (
