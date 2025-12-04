@@ -1,21 +1,38 @@
+/**
+ * Narrative UI Library
+ *
+ * Shared infrastructure for Narrative apps including:
+ * - Schema definitions (BaseDocument, OpinionGraph, Identity, Trust)
+ * - React hooks (useOpinionGraph, useRepository)
+ * - React components (AppShell, LoadingScreen, ProfileModal, etc.)
+ * - Utilities (DID generation, signatures, storage, image processing)
+ */
+
 // Schema exports
+export type {
+  // Identity types (shared across all apps)
+  UserIdentity,
+  IdentityProfile,
+  TrustAttestation,
+  TrustLevel,
+  // Generic document structure
+  BaseDocument,
+} from './schema';
+
 export {
-  type Assumption,
-  type Vote,
-  type Tag,
-  type UserIdentity,
-  type IdentityProfile,
-  type OpinionGraphDoc,
-  type VoteValue,
-  type VoteSummary,
-  type EditEntry,
-  computeVoteSummary,
-  createEmptyDoc,
-  generateId,
+  // Generic document utilities
+  createBaseDocument,
 } from './schema';
 
 // Hooks exports
-export { useOpinionGraph, type OpinionGraphHook } from './hooks/useOpinionGraph';
+export { useRepository, type RepositoryOptions } from './hooks/useRepository';
+
+// Components exports
+export { AppShell, type AppShellProps, type AppShellChildProps } from './components/AppShell';
+export { LoadingScreen } from './components/LoadingScreen';
+export { UserAvatar } from './components/UserAvatar';
+export { ProfileModal } from './components/ProfileModal';
+export { CollaboratorsModal } from './components/CollaboratorsModal';
 
 // DID utilities exports
 export {
@@ -39,3 +56,20 @@ export {
   signEntity,
   verifyEntitySignature,
 } from './utils/signature';
+
+// Storage utilities exports
+export type { StoredIdentity } from './utils/storage';
+export {
+  loadSharedIdentity,
+  saveSharedIdentity,
+  clearSharedIdentity,
+  loadDocumentId,
+  saveDocumentId,
+  clearDocumentId,
+} from './utils/storage';
+
+// Image processing utilities exports
+export {
+  processImageFile,
+  isAvatarSizeValid,
+} from './utils/imageProcessing';

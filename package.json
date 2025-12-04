@@ -4,14 +4,17 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "app",
+    "narrative-app",
+    "map-app",
     "lib"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=app",
-    "build": "npm run build --workspace=lib && npm run build --workspace=app",
+    "dev": "npm run dev --workspace=narrative-app",
+    "dev:map": "npm run dev --workspace=map-app",
+    "build": "npm run build --workspace=lib && npm run build --workspace=narrative-app && npm run build --workspace=map-app",
     "build:lib": "npm run build --workspace=lib",
-    "build:app": "npm run build --workspace=app",
+    "build:app": "npm run build --workspace=narrative-app",
+    "build:map": "npm run build --workspace=map-app",
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces"
   },
