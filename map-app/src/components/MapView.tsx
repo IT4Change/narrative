@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { DocumentId } from '@automerge/automerge-repo';
 import { useRepo } from '@automerge/automerge-repo-react-hooks';
-import { ProfileModal, CollaboratorsModal, UserAvatar, addTrustAttestation } from 'narrative-ui';
+import {
+  ProfileModal,
+  CollaboratorsModal,
+  UserAvatar,
+  addTrustAttestation,
+  useTrustNotifications,
+  TrustReciprocityModal,
+  Toast,
+} from 'narrative-ui';
 import { useMapDocument } from '../hooks/useMapDocument';
 import type { MapDoc } from '../schema/map-data';
 import L from 'leaflet';
@@ -49,8 +57,16 @@ export function MapView({
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [isPlacingMarker, setIsPlacingMarker] = useState(false);
   const [hiddenUserDids, setHiddenUserDids] = useState<Set<string>>(new Set());
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
+
+  // Trust notifications
+  const { pendingAttestations, markAsSeen } = useTrustNotifications(
+    mapData?.doc,
+    currentUserDid,
+    documentId.toString()
+  );
 
   // Initialize map
   useEffect(() => {
@@ -248,6 +264,29 @@ export function MapView({
       console.log('After addTrustAttestation:', { attestationId, count: Object.keys(d.trustAttestations).length });
       d.lastModified = Date.now();
     });
+  };
+
+  const handleTrustBack = (trusterDid: string) => {
+    // Create reciprocal trust attestation
+    docHandle.change((d) => {
+      addTrustAttestation(d, currentUserDid, trusterDid, 'verified', 'in-person');
+      d.lastModified = Date.now();
+    });
+
+    // Mark the incoming attestation as seen
+    const attestation = pendingAttestations.find(att => att.trusterDid === trusterDid);
+    if (attestation) {
+      markAsSeen(attestation.id);
+    }
+  };
+
+  const handleDeclineTrust = (attestationId: string) => {
+    // Just mark as seen, don't create reciprocal trust
+    markAsSeen(attestationId);
+  };
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
   };
 
   const myLocation = mapData.getMyLocation();
@@ -509,6 +548,16 @@ export function MapView({
         onTrustUser={handleTrustUser}
       />
 
+      {/* Trust Reciprocity Modal */}
+      <TrustReciprocityModal
+        pendingAttestations={pendingAttestations}
+        doc={mapData.doc}
+        currentUserDid={currentUserDid}
+        onTrustBack={handleTrustBack}
+        onDecline={handleDeclineTrust}
+        onShowToast={showToast}
+      />
+
       {/* Toast for copied URL */}
       {showCopiedToast && (
         <div className="toast toast-end">
@@ -516,6 +565,15 @@ export function MapView({
             <span>✓ Link copied to clipboard!</span>
           </div>
         </div>
+      )}
+
+      {/* Toast for trust notifications */}
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type="success"
+          onClose={() => setToastMessage(null)}
+        />
       )}
     </div>
   );

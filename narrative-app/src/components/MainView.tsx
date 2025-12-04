@@ -1,6 +1,15 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { useRepo } from '@automerge/automerge-repo-react-hooks';
-import { ProfileModal, CollaboratorsModal, UserAvatar, addTrustAttestation } from 'narrative-ui';
+import {
+  ProfileModal,
+  CollaboratorsModal,
+  UserAvatar,
+  addTrustAttestation,
+  useTrustNotifications,
+  TrustReciprocityModal,
+  Toast,
+  QRScannerModal,
+} from 'narrative-ui';
 import { useOpinionGraph } from '../hooks/useOpinionGraph';
 import type { OpinionGraphDoc } from '../schema/opinion-graph';
 import { AssumptionList } from './AssumptionList';
@@ -34,9 +43,19 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
   const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [showVerifyScanner, setShowVerifyScanner] = useState(false);
   const [hiddenUserDids, setHiddenUserDids] = useState<Set<string>>(new Set());
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
+  const [webOfTrustFilter, setWebOfTrustFilter] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
+
+  // Trust notifications
+  const { pendingAttestations, markAsSeen } = useTrustNotifications(
+    narrative?.doc,
+    currentUserDid,
+    documentId.toString()
+  );
 
   useEffect(() => {
     if (narrative?.doc) {
@@ -70,6 +89,38 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
       console.log('After addTrustAttestation:', { attestationId, count: Object.keys(d.trustAttestations).length });
       d.lastModified = Date.now();
     });
+
+    // If there's a reciprocal attestation (they already trusted us), mark it as seen
+    // so we don't get asked again via TrustReciprocityModal
+    const reciprocalAttestation = pendingAttestations.find(
+      att => att.trusterDid === trusteeDid && att.trusteeDid === currentUserDid
+    );
+    if (reciprocalAttestation) {
+      markAsSeen(reciprocalAttestation.id);
+    }
+  };
+
+  const handleTrustBack = (trusterDid: string) => {
+    // Create reciprocal trust attestation
+    docHandle.change((d) => {
+      addTrustAttestation(d, currentUserDid, trusterDid, 'verified', 'in-person');
+      d.lastModified = Date.now();
+    });
+
+    // Mark the incoming attestation as seen
+    const attestation = pendingAttestations.find(att => att.trusterDid === trusterDid);
+    if (attestation) {
+      markAsSeen(attestation.id);
+    }
+  };
+
+  const handleDeclineTrust = (attestationId: string) => {
+    // Just mark as seen, don't create reciprocal trust
+    markAsSeen(attestationId);
+  };
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
   };
 
   // Wrapper functions that filter by hidden users
@@ -121,9 +172,23 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
       (a) => !hiddenUserDids.has(a.createdBy)
     );
 
-    const filtered = activeTagFilter
-      ? withoutHidden.filter((a) => a.tagIds.includes(activeTagFilter))
+    // Apply Web of Trust filter if active
+    const withTrustFilter = webOfTrustFilter
+      ? withoutHidden.filter((a) => {
+          // Include if created by current user OR by a trusted user
+          if (a.createdBy === currentUserDid) return true;
+          const trustAttestation = narrative.doc.trustAttestations
+            ? Object.values(narrative.doc.trustAttestations).find(
+                (att) => att.trusterDid === currentUserDid && att.trusteeDid === a.createdBy
+              )
+            : undefined;
+          return trustAttestation !== undefined;
+        })
       : withoutHidden;
+
+    const filtered = activeTagFilter
+      ? withTrustFilter.filter((a) => a.tagIds.includes(activeTagFilter))
+      : withTrustFilter;
 
     return [...filtered].sort((a, b) => {
       const summaryA = getFilteredVoteSummary(a.id);
@@ -148,7 +213,7 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
       // recent
       return lastVoteB - lastVoteA || totalB - totalA || agreeRateB - agreeRateA || b.createdAt - a.createdAt;
     });
-  }, [narrative, sortBy, narrative?.doc?.lastModified, activeTagFilter, hiddenUserDids]);
+  }, [narrative, sortBy, narrative?.doc?.lastModified, activeTagFilter, webOfTrustFilter, hiddenUserDids, currentUserDid]);
 
   const handleShareClick = () => {
     const url = window.location.href;
@@ -310,6 +375,25 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
                   Collaborators
                 </a>
               </li>
+              <li>
+                <a onClick={() => setShowVerifyScanner(true)}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                    />
+                  </svg>
+                  Verify
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -324,7 +408,35 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
           <div className="mb-6">
             <div className="flex flex-wrap items-center gap-3 justify-between">
               <div className="flex flex-wrap gap-2 mt-3">
-                {activeTagFilter ? (
+                {/* Web of Trust Filter */}
+                <button
+                  className={`badge gap-1 p-4 cursor-pointer transition-all ${
+                    webOfTrustFilter
+                      ? 'badge-success'
+                      : 'badge-ghost border-base-300 hover:border-success'
+                  }`}
+                  onClick={() => setWebOfTrustFilter(!webOfTrustFilter)}
+                  title={webOfTrustFilter ? 'Nur Web of Trust' : 'Alle Assumptions'}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                    />
+                  </svg>
+                  <span>{webOfTrustFilter ? 'Web of Trust' : 'Alle'}</span>
+                </button>
+
+                {/* Tag Filter */}
+                {activeTagFilter && (
                   <div className="badge badge-primary gap-1 p-4 pr-1">
                     <span>{narrative.tags.find((t) => t.id === activeTagFilter)?.name ?? 'Tag'}</span>
                     <button
@@ -335,8 +447,6 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
                       ✕
                     </button>
                   </div>
-                ) : (
-                  <p className="text-base-content/60 text-sm">Kein Filter aktiv</p>
                 )}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
@@ -498,6 +608,29 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
         availableTags={narrative.tags}
       />
 
+      {/* Trust Reciprocity Modal */}
+      {narrative?.doc && (
+        <TrustReciprocityModal
+          pendingAttestations={pendingAttestations}
+          doc={narrative.doc}
+          currentUserDid={currentUserDid}
+          onTrustBack={handleTrustBack}
+          onDecline={handleDeclineTrust}
+          onShowToast={showToast}
+        />
+      )}
+
+      {/* Verify Scanner Modal */}
+      {narrative?.doc && (
+        <QRScannerModal
+          isOpen={showVerifyScanner}
+          onClose={() => setShowVerifyScanner(false)}
+          currentUserDid={currentUserDid}
+          doc={narrative.doc}
+          onTrustUser={handleTrustUser}
+        />
+      )}
+
       {/* Toast for copied URL */}
       {showCopiedToast && (
         <div className="toast toast-end">
@@ -505,6 +638,15 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
             <span>✓ Link copied to clipboard!</span>
           </div>
         </div>
+      )}
+
+      {/* Toast for trust notifications */}
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type="success"
+          onClose={() => setToastMessage(null)}
+        />
       )}
     </div>
   );

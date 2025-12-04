@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "narrative-app",
     "map-app",
+    "narrative-app",
     "lib"
   ],
   "scripts": {
+    "create-app": "node scripts/create-app.mjs",
     "dev": "npm run dev --workspace=narrative-app",
     "dev:map": "npm run dev --workspace=map-app",
     "build": "npm run build --workspace=lib && npm run build --workspace=narrative-app && npm run build --workspace=map-app",

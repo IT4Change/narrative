@@ -31,6 +31,7 @@ export {
 
 // Hooks exports
 export { useRepository, type RepositoryOptions } from './hooks/useRepository';
+export { useTrustNotifications } from './hooks/useTrustNotifications';
 
 // Components exports
 export { AppShell, type AppShellProps, type AppShellChildProps } from './components/AppShell';
@@ -39,6 +40,8 @@ export { UserAvatar } from './components/UserAvatar';
 export { ProfileModal } from './components/ProfileModal';
 export { CollaboratorsModal } from './components/CollaboratorsModal';
 export { QRScannerModal } from './components/QRScannerModal';
+export { TrustReciprocityModal } from './components/TrustReciprocityModal';
+export { Toast } from './components/Toast';
 
 // DID utilities exports
 export {
