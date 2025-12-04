@@ -275,15 +275,16 @@ export function UnifiedApp() {
     <div className="w-screen h-screen bg-base-200 flex flex-col overflow-hidden">
       {/* Navbar */}
       <div className="navbar bg-base-100 shadow-lg z-[600] flex-shrink-0">
-        <div className="flex-1">
+        {/* Logo - Left */}
+        <div className="navbar-start">
           <a className="btn btn-ghost text-xl flex items-center gap-2">
             <img src={logoUrl} alt="Narrative" className="h-12 pb-2 text-current" />
-            <span>Unified</span>
+            <span className="hidden sm:inline">Unified</span>
           </a>
         </div>
 
-        {/* Module Switcher */}
-        <div className="flex-none">
+        {/* Module Switcher - Center */}
+        <div className="navbar-center">
           <ModuleSwitcher
             modules={AVAILABLE_MODULES}
             enabledModules={doc.enabledModules || { narrative: true }}
@@ -292,8 +293,8 @@ export function UnifiedApp() {
           />
         </div>
 
-        {/* User Menu */}
-        <div className="flex-none gap-2 ml-4">
+        {/* User Menu - Right */}
+        <div className="navbar-end gap-2">
           <div className="flex items-center gap-2">
             <button
               className="w-11 h-11 rounded-full overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
