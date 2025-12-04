@@ -1,6 +1,6 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { useRepo } from '@automerge/automerge-repo-react-hooks';
-import { ProfileModal, CollaboratorsModal, UserAvatar } from 'narrative-ui';
+import { ProfileModal, CollaboratorsModal, UserAvatar, addTrustAttestation } from 'narrative-ui';
 import { useOpinionGraph } from '../hooks/useOpinionGraph';
 import type { OpinionGraphDoc } from '../schema/opinion-graph';
 import { AssumptionList } from './AssumptionList';
@@ -53,6 +53,19 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
         next.add(did);
       }
       return next;
+    });
+  };
+
+  const handleTrustUser = (trusteeDid: string) => {
+    docHandle.change((d) => {
+      addTrustAttestation(
+        d,
+        currentUserDid,
+        trusteeDid,
+        'verified',
+        'in-person'
+      );
+      d.lastModified = Date.now();
     });
   };
 
@@ -471,6 +484,7 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
         currentUserDid={currentUserDid}
         hiddenUserDids={hiddenUserDids}
         onToggleUserVisibility={toggleUserVisibility}
+        onTrustUser={handleTrustUser}
       />
 
       {/* Create Assumption Modal */}

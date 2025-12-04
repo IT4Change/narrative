@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DocumentId } from '@automerge/automerge-repo';
 import { useRepo } from '@automerge/automerge-repo-react-hooks';
-import { ProfileModal, CollaboratorsModal, UserAvatar } from 'narrative-ui';
+import { ProfileModal, CollaboratorsModal, UserAvatar, addTrustAttestation } from 'narrative-ui';
 import { useMapDocument } from '../hooks/useMapDocument';
 import type { MapDoc } from '../schema/map-data';
 import L from 'leaflet';
@@ -231,6 +231,19 @@ export function MapView({
         next.add(did);
       }
       return next;
+    });
+  };
+
+  const handleTrustUser = (trusteeDid: string) => {
+    docHandle.change((d) => {
+      addTrustAttestation(
+        d,
+        currentUserDid,
+        trusteeDid,
+        'verified',
+        'in-person'
+      );
+      d.lastModified = Date.now();
     });
   };
 
@@ -490,6 +503,7 @@ export function MapView({
         currentUserDid={currentUserDid}
         hiddenUserDids={hiddenUserDids}
         onToggleUserVisibility={toggleUserVisibility}
+        onTrustUser={handleTrustUser}
       />
 
       {/* Toast for copied URL */}

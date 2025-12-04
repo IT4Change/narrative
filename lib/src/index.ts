@@ -22,6 +22,11 @@ export type {
 export {
   // Generic document utilities
   createBaseDocument,
+  // Trust attestation utilities
+  addTrustAttestation,
+  removeTrustAttestation,
+  getTrustAttestations,
+  getTrustAttestation,
 } from './schema';
 
 // Hooks exports
@@ -33,6 +38,7 @@ export { LoadingScreen } from './components/LoadingScreen';
 export { UserAvatar } from './components/UserAvatar';
 export { ProfileModal } from './components/ProfileModal';
 export { CollaboratorsModal } from './components/CollaboratorsModal';
+export { QRScannerModal } from './components/QRScannerModal';
 
 // DID utilities exports
 export {

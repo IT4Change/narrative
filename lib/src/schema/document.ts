@@ -61,3 +61,121 @@ export function createBaseDocument<TData>(
     data: initialData,
   };
 }
+
+/**
+ * Generate unique ID for trust attestation
+ */
+function generateAttestationId(): string {
+  return `trust-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Add or update trust attestation
+ *
+ * @param doc - Document to modify
+ * @param trusterDid - DID of user making the trust attestation
+ * @param trusteeDid - DID of user being trusted
+ * @param level - Trust level ('verified' or 'endorsed')
+ * @param verificationMethod - How trust was verified
+ * @param notes - Optional notes about the trust relationship
+ * @returns The created/updated attestation ID
+ */
+export function addTrustAttestation(
+  doc: BaseDocument<any>,
+  trusterDid: string,
+  trusteeDid: string,
+  level: 'verified' | 'endorsed',
+  verificationMethod?: 'in-person' | 'video-call' | 'email' | 'social-proof',
+  notes?: string
+): string {
+  // Check if attestation already exists
+  const existingId = Object.keys(doc.trustAttestations).find((id) => {
+    const att = doc.trustAttestations[id];
+    return att.trusterDid === trusterDid && att.trusteeDid === trusteeDid;
+  });
+
+  const now = Date.now();
+
+  if (existingId) {
+    // Update existing attestation
+    const att = doc.trustAttestations[existingId];
+    att.level = level;
+    att.verificationMethod = verificationMethod;
+    att.notes = notes;
+    att.updatedAt = now;
+    return existingId;
+  } else {
+    // Create new attestation
+    const id = generateAttestationId();
+    doc.trustAttestations[id] = {
+      id,
+      trusterDid,
+      trusteeDid,
+      level,
+      verificationMethod,
+      notes,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return id;
+  }
+}
+
+/**
+ * Remove trust attestation
+ *
+ * @param doc - Document to modify
+ * @param trusterDid - DID of user who made the attestation
+ * @param trusteeDid - DID of user being trusted
+ * @returns true if attestation was removed, false if not found
+ */
+export function removeTrustAttestation(
+  doc: BaseDocument<any>,
+  trusterDid: string,
+  trusteeDid: string
+): boolean {
+  const id = Object.keys(doc.trustAttestations).find((attestationId) => {
+    const att = doc.trustAttestations[attestationId];
+    return att.trusterDid === trusterDid && att.trusteeDid === trusteeDid;
+  });
+
+  if (id) {
+    delete doc.trustAttestations[id];
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Get all trust attestations made by a user
+ *
+ * @param doc - Document to query
+ * @param trusterDid - DID of user who made attestations
+ * @returns Array of attestations made by the user
+ */
+export function getTrustAttestations(
+  doc: BaseDocument<any>,
+  trusterDid: string
+): TrustAttestation[] {
+  return Object.values(doc.trustAttestations).filter(
+    (att) => att.trusterDid === trusterDid
+  );
+}
+
+/**
+ * Check if one user trusts another
+ *
+ * @param doc - Document to query
+ * @param trusterDid - DID of user checking trust
+ * @param trusteeDid - DID of user to check
+ * @returns Trust attestation if exists, undefined otherwise
+ */
+export function getTrustAttestation(
+  doc: BaseDocument<any>,
+  trusterDid: string,
+  trusteeDid: string
+): TrustAttestation | undefined {
+  return Object.values(doc.trustAttestations).find(
+    (att) => att.trusterDid === trusterDid && att.trusteeDid === trusteeDid
+  );
+}

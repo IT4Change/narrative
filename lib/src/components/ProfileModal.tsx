@@ -3,6 +3,7 @@ import { processImageFile } from '../utils/imageProcessing';
 import { loadSharedIdentity, saveSharedIdentity } from '../utils/storage';
 import { useState } from 'react';
 import type { BaseDocument } from '../schema/document';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface ProfileModalProps<TData = unknown> {
   isOpen: boolean;
@@ -187,6 +188,21 @@ export function ProfileModal<TData = unknown>({
           <div className="p-3 bg-base-200 rounded-lg">
             <div className="text-sm text-base-content/70 mb-1">Your DID</div>
             <code className="text-xs break-all">{currentUserDid}</code>
+          </div>
+
+          {/* QR Code Section */}
+          <div className="p-4 bg-base-200 rounded-lg flex flex-col items-center gap-2">
+            <div className="text-sm text-base-content/70 mb-1">Verification QR Code</div>
+            <div className="bg-white p-3 rounded-lg">
+              <QRCodeSVG
+                value={`narrative://verify/${currentUserDid}`}
+                size={160}
+                level="M"
+              />
+            </div>
+            <div className="text-xs text-base-content/50 text-center">
+              Let others scan this to verify your identity
+            </div>
           </div>
 
           <button className="btn btn-outline btn-sm" onClick={onExportIdentity}>

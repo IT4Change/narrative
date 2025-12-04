@@ -30,14 +30,14 @@ jobs:
       - name: Run library tests
         run: npm run test --workspace=lib
 
-      - name: Run app unit tests
-        run: npm run test --workspace=app
+      - name: Run narrative-app unit tests
+        run: npm run test --workspace=narrative-app
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         if: always()
         with:
-          files: ./lib/coverage/lcov.info,./app/coverage/lcov.info
+          files: ./lib/coverage/lcov.info,./narrative-app/coverage/lcov.info
           flags: unittests
           name: codecov-narrative
           fail_ci_if_error: false
@@ -65,16 +65,16 @@ jobs:
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-        working-directory: ./app
+        working-directory: ./narrative-app
 
       - name: Run E2E tests
         run: npx playwright test
-        working-directory: ./app
+        working-directory: ./narrative-app
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
-          path: app/playwright-report/
+          path: narrative-app/playwright-report/
           retention-days: 30

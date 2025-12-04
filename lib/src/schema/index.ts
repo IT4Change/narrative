@@ -15,4 +15,10 @@ export type {
 
 // Generic document structure (shared across all apps)
 export type { BaseDocument } from './document';
-export { createBaseDocument } from './document';
+export {
+  createBaseDocument,
+  addTrustAttestation,
+  removeTrustAttestation,
+  getTrustAttestations,
+  getTrustAttestation,
+} from './document';

@@ -19,13 +19,16 @@
   "dependencies": {
     "@automerge/automerge": "^2.2.8",
     "@automerge/automerge-repo": "^1.2.1",
-    "@automerge/automerge-repo-react-hooks": "^1.2.1",
     "@automerge/automerge-repo-network-websocket": "^1.2.1",
+    "@automerge/automerge-repo-react-hooks": "^1.2.1",
     "@automerge/automerge-repo-storage-indexeddb": "^1.2.1",
     "boring-avatars": "^1.10.1",
-    "multiformats": "^13.4.1"
+    "html5-qrcode": "^2.3.8",
+    "multiformats": "^13.4.1",
+    "qrcode.react": "^4.2.0"
   },
   "devDependencies": {
+    "@types/qrcode.react": "^1.0.5",
     "@types/react": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
     "happy-dom": "^20.0.11",
