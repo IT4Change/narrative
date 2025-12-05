@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from 'vite-plugin-top-level-await';
 import { VitePWA } from 'vite-plugin-pwa';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 
 const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
 const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1] || '';
@@ -14,6 +15,7 @@ export default defineConfig({
     react(),
     wasm(),
     topLevelAwait(),
+    basicSsl(), // Enable HTTPS for local development (required for crypto.subtle)
     VitePWA({
       // Use 'prompt' strategy - shows update notification to user
       registerType: 'prompt',
@@ -55,6 +57,31 @@ export default defineConfig({
         // Cache strategies
         runtimeCaching: [
           {
+            // JS bundles - network first (get updates), fall back to cache
+            urlPattern: /\.js$/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'js-cache',
+              networkTimeoutSeconds: 3, // Fall back to cache after 3s
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 1 week
+              },
+            },
+          },
+          {
+            // WASM files - cache first for fast loading after initial download
+            urlPattern: /\.wasm$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'wasm-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+              },
+            },
+          },
+          {
             // Map tiles - cache first, but update in background
             urlPattern: /^https:\/\/api\.mapbox\.com\/.*/i,
             handler: 'StaleWhileRevalidate',
@@ -72,11 +99,15 @@ export default defineConfig({
             handler: 'NetworkOnly',
           },
         ],
-        // Don't precache source maps
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
+        // Only precache small essential files - large JS/WASM are runtime-cached
+        globPatterns: ['**/*.{css,html,ico,png,svg}'],
+        // Allow the plugin to work, but we exclude large files via globPatterns
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB (just to prevent errors)
         // Skip waiting and claim clients immediately when user accepts update
         skipWaiting: false,
         clientsClaim: false,
+        // Don't block navigation with precache
+        navigateFallback: null,
       },
 
       // Dev options
