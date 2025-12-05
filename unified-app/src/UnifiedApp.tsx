@@ -64,6 +64,7 @@ export function UnifiedApp() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [hiddenUserDids, setHiddenUserDids] = useState<Set<string>>(new Set());
   const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>(() => loadWorkspaceList());
+  const [loadTimeout, setLoadTimeout] = useState(false);
 
   // Document from Automerge
   const [doc] = useDocument<UnifiedDocument>(documentId ?? undefined);
@@ -157,6 +158,20 @@ export function UnifiedApp() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [documentId, repo]);
+
+  // Loading timeout - show reset option after 10 seconds
+  useEffect(() => {
+    if (doc || !documentId) {
+      setLoadTimeout(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setLoadTimeout(true);
+    }, 10000);
+
+    return () => clearTimeout(timer);
+  }, [doc, documentId]);
 
   // Track current workspace in list
   useEffect(() => {
@@ -341,11 +356,28 @@ export function UnifiedApp() {
   }
 
   if (!doc || !identity || !docHandle) {
+    const handleReset = () => {
+      // Clear stored document ID and hash
+      localStorage.removeItem('unifiedDocId');
+      window.location.hash = '';
+      window.location.reload();
+    };
+
     return (
       <div className="flex items-center justify-center min-h-screen bg-base-200">
         <div className="text-center">
           <span className="loading loading-spinner loading-lg text-primary"></span>
           <p className="mt-4 text-base-content">Loading workspace...</p>
+          {loadTimeout && (
+            <div className="mt-6">
+              <p className="text-sm text-base-content/60 mb-3">
+                Das Laden dauert länger als erwartet.
+              </p>
+              <button className="btn btn-outline btn-sm" onClick={handleReset}>
+                Neuen Workspace erstellen
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
