@@ -7,7 +7,7 @@
  */
 
 import type { ModuleProps } from 'narrative-ui';
-import type { MapData, UserLocation } from '../schema/map-data';
+import type { MapData, UserLocation, MapDoc } from '../schema/map-data';
 import { MapContent } from '../components/MapContent';
 
 export interface MapModuleProps extends ModuleProps<MapData> {
@@ -22,11 +22,8 @@ export interface MapModuleProps extends ModuleProps<MapData> {
   // Hidden users for filtering
   hiddenUserDids?: Set<string>;
 
-  // Document context for identities
-  doc: {
-    identities: Record<string, { displayName?: string; avatarUrl?: string }>;
-    trustAttestations: Record<string, unknown>;
-  };
+  // Full document for profile modal
+  doc: MapDoc;
 }
 
 export function MapModule({
@@ -48,6 +45,7 @@ export function MapModule({
         onSetLocation={onSetLocation}
         onRemoveLocation={onRemoveLocation}
         getMyLocation={getMyLocation}
+        doc={doc}
       />
     </div>
   );

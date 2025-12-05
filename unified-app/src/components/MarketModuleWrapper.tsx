@@ -238,7 +238,9 @@ export function MarketModuleWrapper({
       context={{
         currentUserDid: identity.did,
         identities: doc.identities,
-        trustAttestations: doc.trustAttestations,
+        // Trust attestations are now in UserDocument, not workspace doc
+        trustGiven: {},
+        trustReceived: {},
       }}
       onCreateListing={handleCreateListing}
       onSetListingStatus={handleSetListingStatus}
@@ -251,7 +253,6 @@ export function MarketModuleWrapper({
       hiddenUserDids={hiddenUserDids}
       doc={{
         identities: doc.identities,
-        trustAttestations: doc.trustAttestations,
       }}
     />
   );

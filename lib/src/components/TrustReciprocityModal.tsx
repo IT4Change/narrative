@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import type { BaseDocument } from '../schema/document';
 import type { TrustAttestation } from '../schema/identity';
 import { UserAvatar } from './UserAvatar';
+import { QRScannerModal } from './QRScannerModal';
 
 interface TrustReciprocityModalProps<TData = unknown> {
   pendingAttestations: TrustAttestation[];
   doc: BaseDocument<TData>;
   currentUserDid: string;
-  onTrustBack: (trusterDid: string) => void;
+  /** Called when user successfully scans and trusts back via QR */
+  onTrustUser: (trusteeDid: string, trusteeUserDocUrl?: string) => void;
   onDecline: (attestationId: string) => void;
   onShowToast?: (message: string) => void;
 }
@@ -16,11 +18,12 @@ export function TrustReciprocityModal<TData = unknown>({
   pendingAttestations,
   doc,
   currentUserDid,
-  onTrustBack,
+  onTrustUser,
   onDecline,
   onShowToast,
 }: TrustReciprocityModalProps<TData>) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showScanner, setShowScanner] = useState(false);
 
   // Reset index when pending attestations change
   useEffect(() => {
@@ -40,12 +43,27 @@ export function TrustReciprocityModal<TData = unknown>({
   const profile = doc.identities[trusterDid];
   const displayName = profile?.displayName || 'Anonymous User';
 
-  const handleTrustBack = () => {
-    onTrustBack(trusterDid);
-    if (onShowToast) {
-      onShowToast(`Du vertraust jetzt ${displayName}`);
+  const handleOpenScanner = () => {
+    setShowScanner(true);
+  };
+
+  const handleScannerClose = () => {
+    setShowScanner(false);
+  };
+
+  const handleTrustFromScanner = (scannedDid: string, userDocUrl?: string) => {
+    onTrustUser(scannedDid, userDocUrl);
+    setShowScanner(false);
+
+    // Mark the current attestation as handled if the scanned DID matches
+    if (scannedDid === trusterDid) {
+      onDecline(currentAttestation.id); // Mark as seen
+      if (onShowToast) {
+        onShowToast(`Du vertraust jetzt ${displayName}`);
+      }
     }
-    // Move to next attestation or close
+
+    // Move to next attestation
     if (currentIndex < pendingAttestations.length - 1) {
       setCurrentIndex(currentIndex + 1);
     }
@@ -97,7 +115,8 @@ export function TrustReciprocityModal<TData = unknown>({
             ></path>
           </svg>
           <span className="text-sm">
-            <strong>{displayName}</strong> hat deine Identität verifiziert. Möchtest du auch dieser Person vertrauen?
+            <strong>{displayName}</strong> hat deine Identität verifiziert.
+            Um zurück zu vertrauen, scanne den QR-Code von {displayName}.
           </span>
         </div>
 
@@ -109,9 +128,9 @@ export function TrustReciprocityModal<TData = unknown>({
 
         <div className="flex gap-3">
           <button className="btn btn-ghost flex-1" onClick={handleDecline}>
-            Ablehnen
+            Später
           </button>
-          <button className="btn btn-primary flex-1" onClick={handleTrustBack}>
+          <button className="btn btn-primary flex-1" onClick={handleOpenScanner}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5"
@@ -123,14 +142,23 @@ export function TrustReciprocityModal<TData = unknown>({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
               />
             </svg>
-            Auch vertrauen
+            QR-Code scannen
           </button>
         </div>
       </div>
       <div className="modal-backdrop"></div>
+
+      {/* QR Scanner Modal for trust-back */}
+      <QRScannerModal
+        isOpen={showScanner}
+        onClose={handleScannerClose}
+        currentUserDid={currentUserDid}
+        doc={doc}
+        onTrustUser={handleTrustFromScanner}
+      />
     </div>
   );
 }

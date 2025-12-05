@@ -69,7 +69,7 @@ export function NarrativeModule({
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
   const [webOfTrustFilter, setWebOfTrustFilter] = useState(false);
 
-  const { currentUserDid, trustAttestations } = context;
+  const { currentUserDid, trustGiven } = context;
 
   // Apply filters and sorting
   const sortedAssumptions = useMemo(() => {
@@ -93,12 +93,13 @@ export function NarrativeModule({
     const withTrustFilter = webOfTrustFilter
       ? withoutHidden.filter((a) => {
           if (a.createdBy === currentUserDid) return true;
-          const trustAttestation = trustAttestations
-            ? Object.values(trustAttestations).find(
-                (att) => att.trusterDid === currentUserDid && att.trusteeDid === a.createdBy
+          // Check if we trust the assumption creator (outgoing trust)
+          const isTrusted = trustGiven
+            ? Object.values(trustGiven).some(
+                (att) => att.trusteeDid === a.createdBy
               )
-            : undefined;
-          return trustAttestation !== undefined;
+            : false;
+          return isTrusted;
         })
       : withoutHidden;
 
@@ -131,7 +132,7 @@ export function NarrativeModule({
       // recent
       return lastVoteB - lastVoteA || totalB - totalA || agreeRateB - agreeRateA || b.createdAt - a.createdAt;
     });
-  }, [assumptions, sortBy, activeTagFilter, webOfTrustFilter, hiddenUserDids, currentUserDid, trustAttestations, data, getVoteSummary]);
+  }, [assumptions, sortBy, activeTagFilter, webOfTrustFilter, hiddenUserDids, currentUserDid, trustGiven, data, getVoteSummary]);
 
   const handleImportAssumptions = async (importText: string) => {
     const parsed = JSON.parse(importText || '[]');
@@ -233,7 +234,6 @@ export function NarrativeModule({
             version: '1.0.0',
             lastModified: Date.now(),
             identities: context.identities,
-            trustAttestations,
             data,
           }}
         />

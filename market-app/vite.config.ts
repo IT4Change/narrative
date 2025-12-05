@@ -1,6 +1,6 @@
 import { createViteConfig } from '../shared-config/vite.base';
 
 export default createViteConfig({
-  appName: 'market-app',
+  appName: 'market',
   port: 3002,
 });

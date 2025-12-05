@@ -29,6 +29,9 @@ export interface IdentityProfile {
 /**
  * Trust attestation for Web of Trust
  * Represents a cryptographic assertion that one user trusts another
+ *
+ * Security: Attestations should be signed by the truster to prevent forgery.
+ * Invalid signatures should be ignored at read time.
  */
 export interface TrustAttestation {
   id: string;
@@ -40,7 +43,18 @@ export interface TrustAttestation {
   createdAt: number;
   updatedAt: number;
 
-  // Phase 2: Signature (prevents forgery)
+  /**
+   * UserDoc URL of the truster (for bidirectional trust)
+   * Allows the trustee to resolve the truster's profile and
+   * write back to truster's trustReceived when trust is reciprocated.
+   */
+  trusterUserDocUrl?: string;
+
+  /**
+   * JWS signature proving this attestation was created by the truster
+   * Format: header.payload.signature (compact serialization)
+   * Signed payload excludes: signature field itself
+   */
   signature?: string;
 }
 

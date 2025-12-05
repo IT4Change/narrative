@@ -66,6 +66,7 @@ export function MapView({
               onSetLocation={mapData.setMyLocation}
               onRemoveLocation={mapData.removeMyLocation}
               getMyLocation={mapData.getMyLocation}
+              doc={mapData.doc}
             />
           )}
         </div>

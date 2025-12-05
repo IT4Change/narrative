@@ -154,7 +154,9 @@ export function MapModuleWrapper({
         context={{
           currentUserDid: identity.did,
           identities: doc.identities,
-          trustAttestations: doc.trustAttestations,
+          // Trust attestations are now in UserDocument, not workspace doc
+          trustGiven: {},
+          trustReceived: {},
         }}
         onSetLocation={handleSetLocation}
         onRemoveLocation={handleRemoveLocation}
@@ -163,7 +165,6 @@ export function MapModuleWrapper({
         hiddenUserDids={hiddenUserDids}
         doc={{
           identities: doc.identities,
-          trustAttestations: doc.trustAttestations,
         }}
       />
     </div>

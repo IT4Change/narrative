@@ -8,7 +8,8 @@ interface QRScannerModalProps<TData = unknown> {
   onClose: () => void;
   currentUserDid: string;
   doc: BaseDocument<TData>;
-  onTrustUser: (did: string) => void;
+  /** Callback when user trusts another user. Receives DID and optional userDocUrl for bidirectional trust. */
+  onTrustUser: (did: string, userDocUrl?: string) => void;
 }
 
 export function QRScannerModal<TData = unknown>({
@@ -20,6 +21,7 @@ export function QRScannerModal<TData = unknown>({
 }: QRScannerModalProps<TData>) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [scannedDid, setScannedDid] = useState<string | null>(null);
+  const [scannedUserDocUrl, setScannedUserDocUrl] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
 
@@ -45,10 +47,21 @@ export function QRScannerModal<TData = unknown>({
           },
           (decodedText) => {
             // Parse the scanned QR code
-            const match = decodedText.match(/narrative:\/\/verify\/(.+)/);
+            // Format: narrative://verify/{did}?userDoc={encodedUrl}
+            const match = decodedText.match(/narrative:\/\/verify\/([^?]+)(\?.*)?/);
             if (match && match[1]) {
               const did = match[1];
               setScannedDid(did);
+
+              // Extract userDocUrl if present
+              if (match[2]) {
+                const params = new URLSearchParams(match[2]);
+                const userDocUrl = params.get('userDoc');
+                if (userDocUrl) {
+                  setScannedUserDocUrl(decodeURIComponent(userDocUrl));
+                }
+              }
+
               setIsScanning(false);
               // Just stop scanning, don't clear yet
               scanner.stop().catch(console.error);
@@ -107,6 +120,7 @@ export function QRScannerModal<TData = unknown>({
       }
     }
     setScannedDid(null);
+    setScannedUserDocUrl(null);
     setScanError('');
     setIsScanning(false);
     onClose();
@@ -115,12 +129,13 @@ export function QRScannerModal<TData = unknown>({
   const handleTrust = () => {
     console.log('[QRScannerModal] handleTrust called', {
       scannedDid,
+      scannedUserDocUrl,
       currentUserDid,
       hasOnTrustUser: !!onTrustUser
     });
     if (scannedDid) {
-      console.log('[QRScannerModal] Calling onTrustUser with:', scannedDid);
-      onTrustUser(scannedDid);
+      console.log('[QRScannerModal] Calling onTrustUser with:', scannedDid, scannedUserDocUrl);
+      onTrustUser(scannedDid, scannedUserDocUrl ?? undefined);
       console.log('[QRScannerModal] onTrustUser returned, closing modal');
       handleClose();
     } else {

@@ -5,16 +5,20 @@
  * - Identity (loading, saving, updating)
  * - Workspaces (list, switching, creating)
  * - Hidden users
- * - Trust attestations + notifications
+ * - Trust attestations + notifications (from User-Doc)
  * - Toast notifications
  * - All standard modal props (TrustReciprocityModal, NewWorkspaceModal, Toast)
  *
  * Apps should use this hook and simply spread the provided props to components.
  * No manual state management or handlers needed for standard functionality.
+ *
+ * Trust Source: User document (userDoc.trustGiven/trustReceived)
+ * Trust attestations are stored in the personal UserDocument, not workspace documents.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import type { DocHandle } from '@automerge/automerge-repo';
+import type { DocHandle, AutomergeUrl, Repo } from '@automerge/automerge-repo';
+import { useProfileUrl } from './useProfileUrl';
 import {
   loadSharedIdentity,
   saveSharedIdentity,
@@ -26,9 +30,12 @@ import {
   upsertWorkspace,
   type WorkspaceInfo,
 } from '../components/WorkspaceSwitcher';
-import { addTrustAttestation } from '../schema';
 import type { BaseDocument } from '../schema/document';
 import type { TrustAttestation } from '../schema/identity';
+import type { UserDocument } from '../schema/userDocument';
+import { addTrustGiven, addTrustReceived, removeTrustGiven } from '../schema/userDocument';
+import { signEntity, verifyEntitySignature } from '../utils/signature';
+import { extractPublicKeyFromDid, base64Encode } from '../utils/did';
 
 // Storage key for seen trust attestations
 const TRUST_STORAGE_KEY = 'narrativeTrustNotifications';
@@ -61,6 +68,41 @@ function markAttestationsAsSeen(documentId: string, attestationIds: string[]): v
     localStorage.setItem(TRUST_STORAGE_KEY, JSON.stringify(data));
   } catch {
     // Ignore storage errors
+  }
+}
+
+/**
+ * Verify an attestation's signature
+ * Returns true if valid, false if invalid or missing signature
+ */
+async function verifyAttestationSignature(attestation: TrustAttestation): Promise<boolean> {
+  if (!attestation.signature) {
+    console.warn('🔐 Attestation has no signature:', attestation.id);
+    return false;
+  }
+
+  try {
+    // Extract public key from truster's DID
+    const publicKeyBytes = extractPublicKeyFromDid(attestation.trusterDid);
+    if (!publicKeyBytes) {
+      console.warn('🔐 Could not extract public key from DID:', attestation.trusterDid);
+      return false;
+    }
+
+    const publicKeyBase64 = base64Encode(publicKeyBytes);
+    const result = await verifyEntitySignature(
+      attestation as unknown as Record<string, unknown>,
+      publicKeyBase64
+    );
+
+    if (!result.valid) {
+      console.warn('🔐 Invalid signature for attestation:', attestation.id, result.error);
+    }
+
+    return result.valid;
+  } catch (err) {
+    console.error('🔐 Error verifying attestation signature:', err);
+    return false;
   }
 }
 
@@ -100,6 +142,30 @@ export interface UseAppContextOptions<TData = unknown> {
 
   /** Callback to update identity in the document (app-specific) */
   onUpdateIdentityInDoc?: (updates: { displayName?: string; avatarUrl?: string }) => void;
+
+  /**
+   * User Document handle for personal trust attestations (optional)
+   * When provided, trust operations use User-Doc instead of Workspace-Doc
+   */
+  userDocHandle?: DocHandle<UserDocument>;
+
+  /**
+   * User Document for reading trust data (optional)
+   * Reactive document from useDocument hook
+   */
+  userDoc?: UserDocument | null;
+
+  /**
+   * User Document URL for bidirectional trust sync (optional)
+   * Included in QR code so others can write to our trustReceived
+   */
+  userDocUrl?: string;
+
+  /**
+   * Automerge Repo for finding other user documents (optional)
+   * Required for bidirectional trust sync
+   */
+  repo?: Repo;
 }
 
 export interface AppContextValue<TData = unknown> {
@@ -124,7 +190,8 @@ export interface AppContextValue<TData = unknown> {
   handleSwitchWorkspace: (workspaceId: string) => void;
   handleNewWorkspace: () => void;
   handleUpdateIdentity: (updates: { displayName?: string; avatarUrl?: string }) => void;
-  handleTrustUser: (trusteeDid: string) => void;
+  handleTrustUser: (trusteeDid: string, trusteeUserDocUrl?: string) => void;
+  handleRevokeTrust: (did: string) => void;
   handleTrustBack: (trusterDid: string) => void;
   handleDeclineTrust: (attestationId: string) => void;
   handleResetIdentity: () => void;
@@ -134,6 +201,9 @@ export interface AppContextValue<TData = unknown> {
   openNewWorkspaceModal: () => void;
   closeNewWorkspaceModal: () => void;
   handleCreateWorkspace: (name: string, avatarDataUrl?: string) => void;
+
+  // Profile viewing
+  openProfile: (did: string) => void;
 
   // Props ready for components - just spread these!
   navbarProps: {
@@ -145,7 +215,7 @@ export interface AppContextValue<TData = unknown> {
     onSwitchWorkspace: (workspaceId: string) => void;
     onNewWorkspace: () => void;
     onUpdateIdentity: (updates: { displayName?: string; avatarUrl?: string }) => void;
-    onTrustUser: (trusteeDid: string) => void;
+    onTrustUser: (trusteeDid: string, trusteeUserDocUrl?: string) => void;
     onResetIdentity: () => void;
     onToggleUserVisibility: (did: string) => void;
     hiddenUserDids: Set<string>;
@@ -153,6 +223,8 @@ export interface AppContextValue<TData = unknown> {
     onShowToast: (message: string) => void;
     hideWorkspaceSwitcher?: boolean;
     appTitle?: string;
+    userDoc?: UserDocument | null;
+    userDocUrl?: string;
   } | null;
 
   newWorkspaceModalProps: {
@@ -165,7 +237,7 @@ export interface AppContextValue<TData = unknown> {
     pendingAttestations: TrustAttestation[];
     doc: BaseDocument<TData>;
     currentUserDid: string;
-    onTrustBack: (trusterDid: string) => void;
+    onTrustUser: (trusteeDid: string, trusteeUserDocUrl?: string) => void;
     onDecline: (attestationId: string) => void;
     onShowToast: (message: string) => void;
   } | null;
@@ -192,6 +264,10 @@ export function useAppContext<TData = unknown>(
     onResetIdentity,
     onCreateWorkspace,
     onUpdateIdentityInDoc,
+    userDocHandle,
+    userDoc,
+    userDocUrl,
+    repo,
   } = options;
 
   // Identity state
@@ -207,6 +283,9 @@ export function useAppContext<TData = unknown>(
 
   // Trust notifications state
   const [pendingAttestations, setPendingAttestations] = useState<TrustAttestation[]>([]);
+
+  // URL-based profile support
+  const { openProfile } = useProfileUrl();
 
   // Current user DID - prefer provided, fallback to identity
   const currentUserDid = providedUserDid ?? identity?.did ?? '';
@@ -234,32 +313,117 @@ export function useAppContext<TData = unknown>(
     });
   }, [documentId, doc, effectiveWorkspaceName, workspaceAvatar]);
 
-  // Trust notifications detection
+  // Register own identity in workspace identityLookup on join
   useEffect(() => {
-    if (!doc || !currentUserDid || !documentId) {
+    if (!docHandle || !identity || !doc) return;
+
+    // Check if we need to update the lookup
+    const currentLookup = doc.identityLookup?.[identity.did];
+    const needsUpdate =
+      !currentLookup ||
+      currentLookup.displayName !== identity.displayName ||
+      currentLookup.avatarUrl !== identity.avatarUrl ||
+      currentLookup.userDocUrl !== userDocUrl;
+
+    if (needsUpdate) {
+      docHandle.change((d: BaseDocument<TData>) => {
+        if (!d.identityLookup) {
+          d.identityLookup = {};
+        }
+        // Build entry without undefined values (Automerge doesn't allow undefined)
+        const entry: { displayName?: string; avatarUrl?: string; userDocUrl?: string; updatedAt: number } = {
+          updatedAt: Date.now(),
+        };
+        if (identity.displayName) {
+          entry.displayName = identity.displayName;
+        }
+        if (identity.avatarUrl) {
+          entry.avatarUrl = identity.avatarUrl;
+        }
+        if (userDocUrl) {
+          entry.userDocUrl = userDocUrl;
+        }
+        d.identityLookup[identity.did] = entry;
+      });
+    }
+  }, [docHandle, identity, doc, userDocUrl]);
+
+  // Trust notifications detection (from User-Doc)
+  // Verifies signatures before showing notifications
+  useEffect(() => {
+    if (!currentUserDid || !documentId || !userDoc) {
       setPendingAttestations([]);
       return;
     }
 
     const seenIds = getSeenAttestations(documentId);
 
-    // Find attestations where current user is the trustee
-    const incomingAttestations = Object.values(doc.trustAttestations || {}).filter(
-      (attestation) => attestation.trusteeDid === currentUserDid
+    // Get incoming trust attestations from User-Doc
+    const incomingAttestations = Object.values(userDoc.trustReceived || {});
+
+    // Get DIDs we already trust (bidirectional trust already exists)
+    const alreadyTrustedDids = new Set(Object.keys(userDoc.trustGiven || {}));
+
+    console.log('🔔 Trust notification check:', {
+      incomingCount: incomingAttestations.length,
+      alreadyTrustedDids: Array.from(alreadyTrustedDids),
+      seenCount: seenIds.size,
+    });
+
+    // Filter out:
+    // - seen attestations
+    // - self-attestations
+    // - attestations from people we already trust (bidirectional already complete)
+    const candidateAttestations = incomingAttestations.filter(
+      (attestation) => {
+        const isSeen = seenIds.has(attestation.id);
+        const isSelf = attestation.trusterDid === currentUserDid;
+        const alreadyTrusted = alreadyTrustedDids.has(attestation.trusterDid);
+
+        console.log('🔔 Checking attestation:', {
+          id: attestation.id,
+          trusterDid: attestation.trusterDid.substring(0, 20) + '...',
+          isSeen,
+          isSelf,
+          alreadyTrusted,
+          willShow: !isSeen && !isSelf && !alreadyTrusted,
+        });
+
+        return !isSeen && !isSelf && !alreadyTrusted;
+      }
     );
 
-    // Filter out seen attestations and self-attestations
-    const newAttestations = incomingAttestations.filter(
-      (attestation) =>
-        !seenIds.has(attestation.id) &&
-        attestation.trusterDid !== currentUserDid
-    );
+    // Verify signatures asynchronously
+    const verifyAndSetAttestations = async () => {
+      const verifiedAttestations: TrustAttestation[] = [];
 
-    // Sort by creation time (oldest first)
-    newAttestations.sort((a, b) => a.createdAt - b.createdAt);
+      for (const attestation of candidateAttestations) {
+        // Allow unsigned attestations during transition period
+        // TODO: Make signature verification mandatory after migration
+        if (!attestation.signature) {
+          console.log('🔐 Allowing unsigned attestation (legacy):', attestation.id);
+          verifiedAttestations.push(attestation);
+          continue;
+        }
 
-    setPendingAttestations(newAttestations);
-  }, [doc, doc?.trustAttestations, currentUserDid, documentId]);
+        const isValid = await verifyAttestationSignature(attestation);
+        if (isValid) {
+          verifiedAttestations.push(attestation);
+        } else {
+          console.warn('🔐 Rejecting attestation with invalid signature:', attestation.id);
+          // Mark invalid attestations as seen so we don't keep checking them
+          markAttestationsAsSeen(documentId, [attestation.id]);
+        }
+      }
+
+      // Sort by creation time (oldest first)
+      verifiedAttestations.sort((a, b) => a.createdAt - b.createdAt);
+
+      setPendingAttestations(verifiedAttestations);
+    };
+
+    verifyAndSetAttestations();
+  }, [userDoc, userDoc?.trustReceived, userDoc?.trustGiven, currentUserDid, documentId]);
 
   // Current workspace info
   const currentWorkspace: WorkspaceInfo | null = doc
@@ -316,39 +480,206 @@ export function useAppContext<TData = unknown>(
           d.lastModified = Date.now();
         });
       }
+
+      // Also update identityLookup for workspace-internal profile resolution
+      docHandle.change((d: BaseDocument<TData>) => {
+        if (!d.identityLookup) {
+          d.identityLookup = {};
+        }
+        if (!d.identityLookup[identity.did]) {
+          d.identityLookup[identity.did] = { updatedAt: Date.now() };
+        }
+        // Only set non-undefined values (Automerge doesn't allow undefined)
+        if (updates.displayName !== undefined && updates.displayName !== null) {
+          d.identityLookup[identity.did].displayName = updates.displayName;
+        }
+        if (updates.avatarUrl !== undefined && updates.avatarUrl !== null && updates.avatarUrl !== '') {
+          d.identityLookup[identity.did].avatarUrl = updates.avatarUrl;
+        } else if (updates.avatarUrl === '' || updates.avatarUrl === null) {
+          // Remove avatar if explicitly cleared
+          delete d.identityLookup[identity.did].avatarUrl;
+        }
+        // Include userDocUrl for bidirectional trust
+        if (userDocUrl) {
+          d.identityLookup[identity.did].userDocUrl = userDocUrl;
+        }
+        d.identityLookup[identity.did].updatedAt = Date.now();
+      });
     },
-    [identity, docHandle, onUpdateIdentityInDoc]
+    [identity, docHandle, onUpdateIdentityInDoc, userDocUrl]
   );
 
   const handleTrustUser = useCallback(
-    (trusteeDid: string) => {
-      if (!docHandle || !currentUserDid) return;
-
-      docHandle.change((d: BaseDocument<TData>) => {
-        addTrustAttestation(d, currentUserDid, trusteeDid, 'verified', 'in-person');
-        d.lastModified = Date.now();
+    async (trusteeDid: string, trusteeUserDocUrl?: string) => {
+      console.log('🤝 handleTrustUser called', {
+        trusteeDid,
+        trusteeUserDocUrl,
+        currentUserDid,
+        hasUserDocHandle: !!userDocHandle,
+        hasRepo: !!repo
       });
+      if (!currentUserDid || !userDocHandle || !identity?.privateKey) {
+        console.warn('Cannot trust user: userDocHandle or privateKey not available', { currentUserDid, userDocHandle, hasPrivateKey: !!identity?.privateKey });
+        return;
+      }
+
+      // Build attestation without signature first
+      const attestationData: Omit<TrustAttestation, 'signature'> = {
+        id: `trust-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        trusterDid: currentUserDid,
+        trusteeDid: trusteeDid,
+        level: 'verified',
+        verificationMethod: 'in-person',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      // Add trusterUserDocUrl if we have it (for bidirectional trust)
+      if (userDocUrl) {
+        (attestationData as TrustAttestation).trusterUserDocUrl = userDocUrl;
+      }
+
+      // Sign the attestation
+      let signature: string;
+      try {
+        signature = await signEntity(attestationData as Record<string, unknown>, identity.privateKey);
+        console.log('🤝 Attestation signed successfully');
+      } catch (err) {
+        console.error('🤝 Failed to sign attestation:', err);
+        return;
+      }
+
+      const attestation: TrustAttestation = {
+        ...attestationData,
+        signature,
+      };
+      console.log('🤝 Creating signed trust attestation', { id: attestation.id, hasSig: !!attestation.signature });
+
+      // 1. Add to our own trustGiven
+      userDocHandle.change((d) => {
+        console.log('🤝 Inside change callback, adding trust', { did: d.did, trustGiven: Object.keys(d.trustGiven || {}).length });
+        addTrustGiven(d, attestation);
+        console.log('🤝 After addTrustGiven', { trustGiven: Object.keys(d.trustGiven || {}).length });
+      });
+
+      // 2. If we have the trustee's userDocUrl and repo, add to their trustReceived
+      if (trusteeUserDocUrl && repo) {
+        console.log('🤝 Writing to trustee userDoc:', trusteeUserDocUrl);
+        try {
+          const trusteeDocHandle = repo.find<UserDocument>(trusteeUserDocUrl as AutomergeUrl);
+          console.log('🤝 Found trustee doc handle, waiting for ready...');
+          trusteeDocHandle.whenReady().then(() => {
+            const currentDoc = trusteeDocHandle.docSync();
+            console.log('🤝 Trustee doc ready', {
+              hasTrustReceived: !!currentDoc?.trustReceived,
+              trusteeDid: currentDoc?.did,
+              currentTrustReceivedCount: Object.keys(currentDoc?.trustReceived || {}).length
+            });
+            trusteeDocHandle.change((d: UserDocument) => {
+              console.log('🤝 Inside trustee change callback', { trusteeDid: d.did });
+              addTrustReceived(d, attestation);
+              console.log('🤝 After addTrustReceived', { trustReceived: Object.keys(d.trustReceived || {}).length });
+            });
+            console.log('🤝 Change applied to trustee doc');
+          }).catch((err: unknown) => {
+            console.warn('🤝 Failed to update trustee userDoc:', err);
+          });
+        } catch (err) {
+          console.warn('🤝 Failed to find trustee userDoc:', err);
+        }
+      } else {
+        console.log('🤝 No trusteeUserDocUrl or repo provided, skipping trustReceived update', {
+          hasTrusteeUserDocUrl: !!trusteeUserDocUrl,
+          hasRepo: !!repo
+        });
+      }
     },
-    [docHandle, currentUserDid]
+    [userDocHandle, currentUserDid, repo, identity?.privateKey, userDocUrl]
+  );
+
+  const handleRevokeTrust = useCallback(
+    (trusteeDid: string) => {
+      if (!userDocHandle) {
+        console.warn('Cannot revoke trust: userDocHandle not available');
+        return;
+      }
+
+      console.log('🚫 Revoking trust for:', trusteeDid);
+
+      userDocHandle.change((d) => {
+        removeTrustGiven(d, trusteeDid);
+      });
+
+      showToast(`Trust revoked`);
+    },
+    [userDocHandle]
   );
 
   const handleTrustBack = useCallback(
-    (trusterDid: string) => {
-      if (!docHandle || !currentUserDid || !documentId) return;
+    async (trusterDid: string) => {
+      if (!currentUserDid || !documentId || !userDocHandle || !identity?.privateKey) {
+        console.warn('Cannot trust back: userDocHandle or privateKey not available');
+        return;
+      }
 
-      docHandle.change((d: BaseDocument<TData>) => {
-        addTrustAttestation(d, currentUserDid, trusterDid, 'verified', 'in-person');
-        d.lastModified = Date.now();
+      // Build attestation without signature first
+      const attestationData: Omit<TrustAttestation, 'signature'> = {
+        id: `trust-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        trusterDid: currentUserDid,
+        trusteeDid: trusterDid,
+        level: 'verified',
+        verificationMethod: 'in-person',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      // Add trusterUserDocUrl if we have it
+      if (userDocUrl) {
+        (attestationData as TrustAttestation).trusterUserDocUrl = userDocUrl;
+      }
+
+      // Sign the attestation
+      let signature: string;
+      try {
+        signature = await signEntity(attestationData as Record<string, unknown>, identity.privateKey);
+      } catch (err) {
+        console.error('Failed to sign trust-back attestation:', err);
+        return;
+      }
+
+      const attestation: TrustAttestation = {
+        ...attestationData,
+        signature,
+      };
+
+      userDocHandle.change((d) => {
+        addTrustGiven(d, attestation);
       });
 
+      // If the original truster provided their userDocUrl, write to their trustReceived
+      const existingAttestation = pendingAttestations.find(att => att.trusterDid === trusterDid);
+      if (existingAttestation?.trusterUserDocUrl && repo) {
+        try {
+          const trusterDocHandle = repo.find<UserDocument>(existingAttestation.trusterUserDocUrl as AutomergeUrl);
+          trusterDocHandle.whenReady().then(() => {
+            trusterDocHandle.change((d: UserDocument) => {
+              addTrustReceived(d, attestation);
+            });
+          }).catch((err: unknown) => {
+            console.warn('Failed to update truster userDoc:', err);
+          });
+        } catch (err) {
+          console.warn('Failed to find truster userDoc:', err);
+        }
+      }
+
       // Mark the corresponding attestation as seen
-      const attestation = pendingAttestations.find(att => att.trusterDid === trusterDid);
-      if (attestation) {
-        markAttestationsAsSeen(documentId, [attestation.id]);
-        setPendingAttestations(prev => prev.filter(att => att.id !== attestation.id));
+      if (existingAttestation) {
+        markAttestationsAsSeen(documentId, [existingAttestation.id]);
+        setPendingAttestations(prev => prev.filter(att => att.id !== existingAttestation.id));
       }
     },
-    [docHandle, currentUserDid, documentId, pendingAttestations]
+    [userDocHandle, currentUserDid, documentId, pendingAttestations, identity?.privateKey, userDocUrl, repo]
   );
 
   const handleDeclineTrust = useCallback(
@@ -413,7 +744,7 @@ export function useAppContext<TData = unknown>(
         pendingAttestations,
         doc: doc as BaseDocument<TData>,
         currentUserDid,
-        onTrustBack: handleTrustBack,
+        onTrustUser: handleTrustUser, // Now uses QR scanning for proper verification
         onDecline: handleDeclineTrust,
         onShowToast: showToast,
       }
@@ -447,6 +778,8 @@ export function useAppContext<TData = unknown>(
         onShowToast: showToast,
         hideWorkspaceSwitcher,
         appTitle,
+        userDoc,
+        userDocUrl,
       }
     : null;
 
@@ -464,6 +797,7 @@ export function useAppContext<TData = unknown>(
     handleNewWorkspace,
     handleUpdateIdentity,
     handleTrustUser,
+    handleRevokeTrust,
     handleTrustBack,
     handleDeclineTrust,
     handleResetIdentity,
@@ -473,6 +807,7 @@ export function useAppContext<TData = unknown>(
     openNewWorkspaceModal,
     closeNewWorkspaceModal,
     handleCreateWorkspace,
+    openProfile,
     navbarProps,
     newWorkspaceModalProps,
     trustReciprocityModalProps,

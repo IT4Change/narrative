@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { BaseDocument } from '../schema/document';
 import type { TrustAttestation } from '../schema/identity';
+import type { UserDocument } from '../schema/userDocument';
 
 const STORAGE_KEY = 'narrativeTrustNotifications';
 
@@ -53,19 +53,21 @@ function markAttestationsAsSeen(documentId: string, attestationIds: string[]): v
  * Returns pending attestations that haven't been seen yet, in chronological order.
  * Provides methods to mark attestations as seen.
  *
- * @param doc - The Automerge document
+ * Note: Trust attestations are now stored in UserDocument, not workspace documents.
+ *
+ * @param userDoc - The user's personal document
  * @param currentUserDid - The current user's DID
- * @param documentId - The document ID (for localStorage key)
+ * @param documentId - A unique ID for localStorage key (e.g., userDoc URL)
  */
-export function useTrustNotifications<TData = unknown>(
-  doc: BaseDocument<TData> | undefined,
+export function useTrustNotifications(
+  userDoc: UserDocument | undefined | null,
   currentUserDid: string,
   documentId: string
 ) {
   const [pendingAttestations, setPendingAttestations] = useState<TrustAttestation[]>([]);
 
   useEffect(() => {
-    if (!doc || !currentUserDid) {
+    if (!userDoc || !currentUserDid) {
       setPendingAttestations([]);
       return;
     }
@@ -73,16 +75,12 @@ export function useTrustNotifications<TData = unknown>(
     // Get seen attestations from localStorage
     const seenIds = getSeenAttestations(documentId);
 
-    // Find attestations where current user is the trustee
-    const incomingAttestations = Object.values(doc.trustAttestations).filter(
-      (attestation) => attestation.trusteeDid === currentUserDid
-    );
+    // Get incoming trust attestations from UserDocument
+    const incomingAttestations = Object.values(userDoc.trustReceived || {});
 
-    // Find DIDs that the current user already trusts
+    // Find DIDs that the current user already trusts back
     const alreadyTrustedDids = new Set(
-      Object.values(doc.trustAttestations)
-        .filter((att) => att.trusterDid === currentUserDid)
-        .map((att) => att.trusteeDid)
+      Object.values(userDoc.trustGiven || {}).map((att) => att.trusteeDid)
     );
 
     // Filter out seen attestations, self-attestations, and users we already trust
@@ -97,7 +95,7 @@ export function useTrustNotifications<TData = unknown>(
     newAttestations.sort((a, b) => a.createdAt - b.createdAt);
 
     setPendingAttestations(newAttestations);
-  }, [doc, doc?.trustAttestations, currentUserDid, documentId]);
+  }, [userDoc, userDoc?.trustReceived, userDoc?.trustGiven, currentUserDid, documentId]);
 
   /**
    * Mark an attestation as seen

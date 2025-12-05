@@ -315,7 +315,10 @@ export function NarrativeModuleWrapper({
       context={{
         currentUserDid: identity.did,
         identities: doc.identities,
-        trustAttestations: doc.trustAttestations,
+        // Trust attestations are now in UserDocument, not workspace doc
+        // TODO: Pass userDoc for full trust support
+        trustGiven: {},
+        trustReceived: {},
       }}
       onCreateAssumption={handleCreateAssumption}
       onVote={handleVote}

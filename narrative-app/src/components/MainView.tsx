@@ -1,13 +1,14 @@
+import type { DocHandle, AutomergeUrl } from '@automerge/automerge-repo';
 import { DocumentId } from '@automerge/automerge-repo';
-import { useRepo } from '@automerge/automerge-repo-react-hooks';
-import { AppLayout, type AppContextValue } from 'narrative-ui';
+import { useRepo, useDocument } from '@automerge/automerge-repo-react-hooks';
+import { AppLayout, type AppContextValue, type UserDocument } from 'narrative-ui';
 import { useOpinionGraph } from '../hooks/useOpinionGraph';
 import type { OpinionGraphDoc } from '../schema/opinion-graph';
 import { AssumptionList } from './AssumptionList';
 import { CreateAssumptionModal } from './CreateAssumptionModal';
 import { ImportModal } from './ImportModal';
 import { useEffect, useState } from 'react';
-import { exposeDocToConsole } from '../debug';
+import { exposeDocToConsole, exposeUserDocToConsole } from '../debug';
 
 interface MainViewProps {
   documentId: DocumentId;
@@ -17,6 +18,9 @@ interface MainViewProps {
   displayName?: string;
   onResetIdentity: () => void;
   onNewDocument: (name?: string, avatarDataUrl?: string) => void;
+  // User Document (from AppShell when enableUserDocument is true)
+  userDocId?: string;
+  userDocHandle?: DocHandle<UserDocument>;
 }
 
 /**
@@ -31,10 +35,15 @@ export function MainView({
   displayName,
   onResetIdentity,
   onNewDocument,
+  userDocId,
+  userDocHandle: _userDocHandle, // Available for direct mutations if needed
 }: MainViewProps) {
   const repo = useRepo();
   const docHandle = repo.find<OpinionGraphDoc>(documentId);
   const narrative = useOpinionGraph(documentId, docHandle, currentUserDid, privateKey, publicKey, displayName);
+
+  // Load user document reactively
+  const [userDoc] = useDocument<UserDocument>(userDocId as AutomergeUrl | undefined);
 
   // App-specific UI state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -45,12 +54,18 @@ export function MainView({
 
   const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
 
-  // Debug
+  // Debug - expose both docs to console
   useEffect(() => {
     if (narrative?.doc) {
       exposeDocToConsole(narrative.doc);
     }
   }, [narrative?.doc]);
+
+  useEffect(() => {
+    if (userDoc) {
+      exposeUserDocToConsole(userDoc);
+    }
+  }, [userDoc]);
 
   const handleImportAssumptions = async (importText: string) => {
     if (!narrative) return;
@@ -71,6 +86,9 @@ export function MainView({
     }
   };
 
+  // Get userDocHandle from props (passed by AppShell)
+  const userDocHandle = _userDocHandle;
+
   return (
     <AppLayout
       doc={narrative?.doc}
@@ -84,6 +102,9 @@ export function MainView({
       onResetIdentity={onResetIdentity}
       onCreateWorkspace={onNewDocument}
       onUpdateIdentityInDoc={narrative?.updateIdentity}
+      userDocHandle={userDocHandle}
+      userDoc={userDoc}
+      userDocUrl={userDocHandle?.url}
     >
       {(ctx: AppContextValue) => {
         // Wrapper functions that filter by hidden users
@@ -133,15 +154,16 @@ export function MainView({
           );
 
           // Apply Web of Trust filter if active
+          // Uses UserDocument trustGiven to filter by trusted users
           const withTrustFilter = webOfTrustFilter
             ? withoutHidden.filter((a) => {
+                // Always show own assumptions
                 if (a.createdBy === currentUserDid) return true;
-                const trustAttestation = narrative.doc.trustAttestations
-                  ? Object.values(narrative.doc.trustAttestations).find(
-                      (att) => att.trusterDid === currentUserDid && att.trusteeDid === a.createdBy
-                    )
-                  : undefined;
-                return trustAttestation !== undefined;
+                // Check if we trust this user (via UserDocument)
+                if (!userDoc?.trustGiven) return false;
+                return Object.values(userDoc.trustGiven).some(
+                  (att) => att.trusteeDid === a.createdBy
+                );
               })
             : withoutHidden;
 

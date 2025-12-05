@@ -12,6 +12,7 @@ function App() {
       repo={repo}
       createEmptyDocument={createEmptyOpinionGraphDoc}
       storagePrefix="narrative"
+      enableUserDocument
     >
       {(props) => <MainView {...props} />}
     </AppShell>

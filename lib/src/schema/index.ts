@@ -14,12 +14,28 @@ export type {
 } from './identity';
 
 // Generic document structure (shared across all apps)
-export type { BaseDocument, ContextMetadata } from './document';
+// Note: Trust attestations moved to UserDocument
+export type { BaseDocument, ContextMetadata, IdentityLookupEntry } from './document';
 export {
   createBaseDocument,
   generateId,
-  addTrustAttestation,
-  removeTrustAttestation,
-  getTrustAttestations,
-  getTrustAttestation,
 } from './document';
+
+// User Document (personal, cross-workspace data)
+export type {
+  UserDocument,
+  UserProfile,
+  Voucher,
+  WorkspaceRef,
+} from './userDocument';
+export {
+  createUserDocument,
+  addWorkspace,
+  removeWorkspace,
+  touchWorkspace,
+  updateUserProfile,
+  addTrustGiven,
+  removeTrustGiven,
+  addTrustReceived,
+  removeTrustReceived,
+} from './userDocument';

@@ -51,7 +51,6 @@ export function createEmptyUnifiedDoc(creatorIdentity: UserIdentity): UnifiedDoc
     identities: {
       [creatorIdentity.did]: identityProfile,
     },
-    trustAttestations: {},
     data: {
       narrative: {
         assumptions: {},

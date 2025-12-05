@@ -48,10 +48,9 @@ export interface MarketModuleProps extends ModuleProps<MarketAppData> {
   listings: Listing[];
   /** Hidden user DIDs for filtering */
   hiddenUserDids?: Set<string>;
-  /** Full document for ListingCard (identities, trustAttestations) */
+  /** Full document for ListingCard (identities) */
   doc: {
     identities: Record<string, { displayName?: string; avatarUrl?: string }>;
-    trustAttestations: Record<string, unknown>;
   };
 }
 

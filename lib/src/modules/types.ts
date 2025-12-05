@@ -7,6 +7,7 @@
 
 import type { ComponentType } from 'react';
 import type { IdentityProfile, TrustAttestation } from '../schema/identity';
+import type { UserDocument } from '../schema/userDocument';
 
 /**
  * Shared context provided to all modules
@@ -17,8 +18,12 @@ export interface ModuleContext {
   currentUserDid: string;
   /** All identities in this workspace */
   identities: Record<string, IdentityProfile>;
-  /** All trust attestations in this workspace */
-  trustAttestations: Record<string, TrustAttestation>;
+  /** User document for personal data (trust, profile, etc.) */
+  userDoc?: UserDocument | null;
+  /** Outgoing trust attestations (from userDoc.trustGiven) */
+  trustGiven: Record<string, TrustAttestation>;
+  /** Incoming trust attestations (from userDoc.trustReceived) */
+  trustReceived: Record<string, TrustAttestation>;
 }
 
 /**

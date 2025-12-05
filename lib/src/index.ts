@@ -18,23 +18,42 @@ export type {
   // Generic document structure
   BaseDocument,
   ContextMetadata,
+  // User Document (personal, cross-workspace)
+  UserDocument,
+  UserProfile,
+  Voucher,
+  WorkspaceRef,
 } from './schema';
 
 export {
   // Generic document utilities
   createBaseDocument,
   generateId,
-  // Trust attestation utilities
-  addTrustAttestation,
-  removeTrustAttestation,
-  getTrustAttestations,
-  getTrustAttestation,
+  // User Document utilities (trust attestations are now here)
+  createUserDocument,
+  addWorkspace,
+  removeWorkspace,
+  touchWorkspace,
+  updateUserProfile,
+  addTrustGiven,
+  removeTrustGiven,
+  addTrustReceived,
+  removeTrustReceived,
 } from './schema';
 
 // Hooks exports
 export { useRepository, type RepositoryOptions } from './hooks/useRepository';
 export { useTrustNotifications } from './hooks/useTrustNotifications';
 export { useAppContext, type UseAppContextOptions, type AppContextValue } from './hooks/useAppContext';
+export {
+  useUserDocument,
+  loadUserDocId,
+  saveUserDocId,
+  clearUserDocId,
+  type UseUserDocumentOptions,
+  type UseUserDocumentResult,
+} from './hooks/useUserDocument';
+export { useProfileUrl } from './hooks/useProfileUrl';
 
 // Components exports
 export { AppShell, type AppShellProps, type AppShellChildProps } from './components/AppShell';
@@ -50,8 +69,12 @@ export { LoadingScreen } from './components/LoadingScreen';
 export { UserAvatar } from './components/UserAvatar';
 export { ProfileModal } from './components/ProfileModal';
 export { CollaboratorsModal } from './components/CollaboratorsModal';
+export { ParticipantsModal } from './components/ParticipantsModal';
+export { UserListItem, type UserListItemProps } from './components/UserListItem';
 export { QRScannerModal } from './components/QRScannerModal';
 export { TrustReciprocityModal } from './components/TrustReciprocityModal';
+export { UserProfileModal, type ProfileAction } from './components/UserProfileModal';
+export { ClickableUserName } from './components/ClickableUserName';
 export { Toast } from './components/Toast';
 export { NewWorkspaceModal, type NewWorkspaceModalProps } from './components/NewWorkspaceModal';
 export { AppLayout, type AppLayoutProps } from './components/AppLayout';

@@ -28,6 +28,7 @@
 import { useState, useCallback, type ReactNode } from 'react';
 import { UserAvatar } from './UserAvatar';
 import { ProfileModal } from './ProfileModal';
+import { ParticipantsModal } from './ParticipantsModal';
 import { CollaboratorsModal } from './CollaboratorsModal';
 import { QRScannerModal } from './QRScannerModal';
 import {
@@ -38,7 +39,9 @@ import {
   exportIdentityToFile,
   importIdentityFromFile,
 } from '../utils/storage';
+import { useProfileUrl } from '../hooks/useProfileUrl';
 import type { BaseDocument } from '../schema/document';
+import type { UserDocument } from '../schema/userDocument';
 
 export interface AppNavbarProps<TData = unknown> {
   /** Current user's DID */
@@ -65,8 +68,8 @@ export interface AppNavbarProps<TData = unknown> {
   /** Callback to update identity (name, avatar) */
   onUpdateIdentity: (updates: { displayName?: string; avatarUrl?: string }) => void;
 
-  /** Callback when user trusts another user */
-  onTrustUser: (trusteeDid: string) => void;
+  /** Callback when user trusts another user (with optional userDocUrl for bidirectional trust) */
+  onTrustUser: (trusteeDid: string, trusteeUserDocUrl?: string) => void;
 
   /** Callback to reset identity */
   onResetIdentity: () => void;
@@ -94,6 +97,12 @@ export interface AppNavbarProps<TData = unknown> {
 
   /** Optional: Show toast message */
   onShowToast?: (message: string) => void;
+
+  /** User document for trust information (optional) */
+  userDoc?: UserDocument | null;
+
+  /** User document URL for bidirectional trust sync (optional) */
+  userDocUrl?: string;
 }
 
 export function AppNavbar<TData = unknown>({
@@ -115,11 +124,17 @@ export function AppNavbar<TData = unknown>({
   hideWorkspaceSwitcher = false,
   onShareLink,
   onShowToast,
+  userDoc,
+  userDocUrl,
 }: AppNavbarProps<TData>) {
   // Modal states
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
   const [showCollaboratorsModal, setShowCollaboratorsModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+
+  // URL-based profile support
+  const { openProfile } = useProfileUrl();
 
   const identities = doc.identities || {};
   const userProfile = identities[currentUserDid];
@@ -228,7 +243,7 @@ export function AppNavbar<TData = unknown>({
                 </a>
               </li>
               <li>
-                <a onClick={() => setShowCollaboratorsModal(true)}>
+                <a onClick={() => setShowParticipantsModal(true)}>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-5 w-5"
@@ -244,6 +259,25 @@ export function AppNavbar<TData = unknown>({
                     />
                   </svg>
                   Teilnehmer
+                </a>
+              </li>
+              <li>
+                <a onClick={() => setShowCollaboratorsModal(true)}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                    />
+                  </svg>
+                  Vertrauensnetzwerk
                 </a>
               </li>
               <li>
@@ -320,6 +354,21 @@ export function AppNavbar<TData = unknown>({
         onImportIdentity={handleImportIdentity}
         onResetId={onResetIdentity}
         initialDisplayName={initialDisplayName}
+        userDocUrl={userDocUrl}
+      />
+
+      <ParticipantsModal
+        isOpen={showParticipantsModal}
+        onClose={() => setShowParticipantsModal(false)}
+        doc={doc}
+        currentUserDid={currentUserDid}
+        hiddenUserDids={hiddenUserDids}
+        onToggleUserVisibility={handleToggleVisibility}
+        onUserClick={(did) => {
+          setShowParticipantsModal(false);
+          openProfile(did);
+        }}
+        userDoc={userDoc}
       />
 
       <CollaboratorsModal
@@ -330,6 +379,11 @@ export function AppNavbar<TData = unknown>({
         hiddenUserDids={hiddenUserDids}
         onToggleUserVisibility={handleToggleVisibility}
         onTrustUser={onTrustUser}
+        onUserClick={(did) => {
+          setShowCollaboratorsModal(false);
+          openProfile(did);
+        }}
+        userDoc={userDoc}
       />
 
       <QRScannerModal

@@ -15,6 +15,8 @@ interface ProfileModalProps<TData = unknown> {
   onImportIdentity: () => void;
   onResetId: () => void;
   initialDisplayName?: string;
+  /** User document URL for bidirectional trust synchronization */
+  userDocUrl?: string;
 }
 
 export function ProfileModal<TData = unknown>({
@@ -27,6 +29,7 @@ export function ProfileModal<TData = unknown>({
   onImportIdentity,
   onResetId,
   initialDisplayName = '',
+  userDocUrl,
 }: ProfileModalProps<TData>) {
   const [nameInput, setNameInput] = useState(initialDisplayName);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -195,7 +198,10 @@ export function ProfileModal<TData = unknown>({
             <div className="text-sm text-base-content/70 mb-1">Verification QR Code</div>
             <div className="bg-white p-3 rounded-lg">
               <QRCodeSVG
-                value={`narrative://verify/${currentUserDid}`}
+                value={userDocUrl
+                  ? `narrative://verify/${currentUserDid}?userDoc=${encodeURIComponent(userDocUrl)}`
+                  : `narrative://verify/${currentUserDid}`
+                }
                 size={160}
                 level="M"
               />

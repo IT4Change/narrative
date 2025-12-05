@@ -5,6 +5,8 @@ interface UserAvatarProps {
   avatarUrl?: string;
   size: number;
   className?: string;
+  /** If provided, makes the avatar clickable */
+  onClick?: () => void;
 }
 
 // Simple hash function to create consistent avatar seeds
@@ -20,21 +22,35 @@ function hashString(str: string): string {
 
 /**
  * UserAvatar component that shows either custom avatar or boring-avatars fallback
+ * Optionally clickable when onClick is provided
  */
-export function UserAvatar({ did, avatarUrl, size, className = '' }: UserAvatarProps) {
+export function UserAvatar({ did, avatarUrl, size, className = '', onClick }: UserAvatarProps) {
+  const clickableClass = onClick ? 'cursor-pointer hover:ring-2 hover:ring-primary hover:ring-offset-2 transition-all' : '';
+
   if (avatarUrl) {
     return (
       <img
         src={avatarUrl}
         alt="Avatar"
         style={{ width: size, height: size }}
-        className={`object-cover rounded-full flex-shrink-0 ${className}`}
+        className={`object-cover rounded-full flex-shrink-0 ${clickableClass} ${className}`}
+        onClick={onClick}
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
       />
     );
   }
 
   return (
-    <div className="rounded-full overflow-hidden flex-shrink-0" style={{ width: size, height: size }}>
+    <div
+      className={`rounded-full overflow-hidden flex-shrink-0 ${clickableClass}`}
+      style={{ width: size, height: size }}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
+    >
       <Avatar
         size={size}
         name={hashString(did)}

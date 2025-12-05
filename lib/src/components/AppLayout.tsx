@@ -11,11 +11,15 @@
 
 import { type ReactNode } from 'react';
 import type { DocHandle } from '@automerge/automerge-repo';
+import { useRepo } from '@automerge/automerge-repo-react-hooks';
 import { useAppContext, type AppContextValue } from '../hooks/useAppContext';
+import { useProfileUrl } from '../hooks/useProfileUrl';
 import type { BaseDocument } from '../schema/document';
+import type { UserDocument } from '../schema/userDocument';
 import { AppNavbar } from './AppNavbar';
 import { TrustReciprocityModal } from './TrustReciprocityModal';
 import { NewWorkspaceModal } from './NewWorkspaceModal';
+import { UserProfileModal, type ProfileAction } from './UserProfileModal';
 import { Toast } from './Toast';
 
 export interface AppLayoutProps<TDoc extends BaseDocument<unknown>> {
@@ -63,6 +67,41 @@ export interface AppLayoutProps<TDoc extends BaseDocument<unknown>> {
 
   /** Loading component to show while document is loading */
   loadingComponent?: ReactNode;
+
+  /**
+   * User Document handle for personal trust attestations (optional)
+   * When provided, trust operations use User-Doc instead of Workspace-Doc
+   */
+  userDocHandle?: DocHandle<UserDocument>;
+
+  /**
+   * User Document for reading trust data (optional)
+   * Reactive document from useDocument hook
+   */
+  userDoc?: UserDocument | null;
+
+  /**
+   * User Document URL for bidirectional trust sync (optional)
+   * Included in QR code so others can write to our trustReceived
+   */
+  userDocUrl?: string;
+
+  /**
+   * Whether to enable URL-based profile viewing (default: true)
+   * When enabled, profiles can be opened via #profile=did:key:...
+   */
+  enableProfileUrl?: boolean;
+
+  /**
+   * Custom actions to show in the profile modal
+   * Receives the profile DID and close handler
+   */
+  profileActions?: (profileDid: string, closeProfile: () => void) => ProfileAction[];
+
+  /**
+   * Whether to hide trust actions in the profile modal (default: false)
+   */
+  hideProfileTrustActions?: boolean;
 }
 
 /**
@@ -120,7 +159,19 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
   navbarChildren,
   children,
   loadingComponent,
+  userDocHandle,
+  userDoc,
+  userDocUrl,
+  enableProfileUrl = true,
+  profileActions,
+  hideProfileTrustActions = false,
 }: AppLayoutProps<TDoc>) {
+  // Get repo for bidirectional trust sync
+  const repo = useRepo();
+
+  // URL-based profile support
+  const { profileDid, closeProfile } = useProfileUrl();
+
   // Centralized app context - handles ALL standard functionality
   const ctx = useAppContext({
     doc,
@@ -134,6 +185,10 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
     onResetIdentity,
     onCreateWorkspace,
     onUpdateIdentityInDoc,
+    userDocHandle,
+    userDoc,
+    userDocUrl,
+    repo,
   });
 
   // Show loading while document is not ready
@@ -159,6 +214,24 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
       )}
       {ctx.toastProps && <Toast {...ctx.toastProps} />}
       <NewWorkspaceModal {...ctx.newWorkspaceModalProps} />
+
+      {/* URL-based Profile Modal */}
+      {enableProfileUrl && profileDid && (
+        <UserProfileModal
+          did={profileDid}
+          isOpen={true}
+          onClose={closeProfile}
+          doc={doc}
+          currentUserDid={currentUserDid}
+          trustGiven={userDoc?.trustGiven?.[profileDid]}
+          trustReceived={userDoc?.trustReceived?.[profileDid]}
+          onTrust={ctx.handleTrustUser}
+          onRevokeTrust={ctx.handleRevokeTrust}
+          userDocUrl={userDocUrl}
+          customActions={profileActions?.(profileDid, closeProfile) ?? []}
+          hideTrustActions={hideProfileTrustActions}
+        />
+      )}
     </div>
   );
 }

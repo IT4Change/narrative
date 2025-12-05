@@ -6,14 +6,17 @@
  * - Document creation/loading (URL hash + localStorage)
  * - Identity management (DID generation + localStorage)
  * - Fake DID migration
+ * - Optional: User Document initialization (personal cross-workspace data)
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
-import type { Repo } from '@automerge/automerge-repo';
+import type { Repo, DocHandle, AutomergeUrl } from '@automerge/automerge-repo';
 import { RepoContext } from '@automerge/automerge-repo-react-hooks';
 import type { DocumentId } from '@automerge/automerge-repo';
 import { generateDidIdentity, isFakeDid } from '../utils/did';
 import type { UserIdentity } from '../schema/identity';
+import type { UserDocument } from '../schema/userDocument';
+import { createUserDocument } from '../schema/userDocument';
 import {
   loadSharedIdentity,
   saveSharedIdentity,
@@ -22,6 +25,11 @@ import {
   saveDocumentId,
   clearDocumentId,
 } from '../utils/storage';
+import {
+  loadUserDocId,
+  saveUserDocId,
+  clearUserDocId,
+} from '../hooks/useUserDocument';
 import { LoadingScreen } from './LoadingScreen';
 
 export interface AppShellChildProps {
@@ -32,6 +40,10 @@ export interface AppShellChildProps {
   displayName?: string;
   onResetIdentity: () => void;
   onNewDocument: (name?: string, avatarDataUrl?: string) => void;
+
+  // User Document (optional, only if enableUserDocument is true)
+  userDocId?: string;
+  userDocHandle?: DocHandle<UserDocument>;
 }
 
 export interface AppShellProps<TDoc> {
@@ -54,6 +66,13 @@ export interface AppShellProps<TDoc> {
    * Used for storing document ID: `${storagePrefix}_docId`
    */
   storagePrefix: string;
+
+  /**
+   * Enable User Document for cross-workspace personal data
+   * When true, AppShell will also initialize/load the user's personal document
+   * @default false
+   */
+  enableUserDocument?: boolean;
 
   /**
    * Render function that receives initialized document and identity
@@ -79,6 +98,7 @@ export function AppShell<TDoc>({
   repo,
   createEmptyDocument,
   storagePrefix,
+  enableUserDocument = false,
   children,
 }: AppShellProps<TDoc>) {
   const [documentId, setDocumentId] = useState<DocumentId | null>(null);
@@ -87,6 +107,10 @@ export function AppShell<TDoc>({
   const [publicKey, setPublicKey] = useState<string | undefined>(undefined);
   const [displayName, setDisplayName] = useState<string | undefined>(undefined);
   const [isInitializing, setIsInitializing] = useState(true);
+
+  // User Document state (optional)
+  const [userDocId, setUserDocId] = useState<string | undefined>(undefined);
+  const [userDocHandle, setUserDocHandle] = useState<DocHandle<UserDocument> | undefined>(undefined);
 
   // Initialize document and identity on mount
   useEffect(() => {
@@ -107,6 +131,57 @@ export function AppShell<TDoc>({
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [documentId, storagePrefix]);
+
+  /**
+   * Initialize or load the User Document
+   * This is a personal document that syncs across workspaces
+   */
+  const initializeUserDocument = async (identity: { did: string; displayName?: string }) => {
+    const savedUserDocId = loadUserDocId();
+
+    let handle: DocHandle<UserDocument>;
+
+    if (savedUserDocId) {
+      // Try to load existing user document
+      try {
+        handle = repo.find<UserDocument>(savedUserDocId as AutomergeUrl);
+        await handle.whenReady();
+
+        // Verify the document belongs to this user
+        const doc = handle.docSync();
+        if (doc && doc.did !== identity.did) {
+          console.warn('User document DID mismatch, creating new document');
+          // Create new document instead
+          handle = repo.create<UserDocument>();
+          handle.change((d) => {
+            const newDoc = createUserDocument(identity.did, identity.displayName || 'User');
+            Object.assign(d, newDoc);
+          });
+          saveUserDocId(handle.url);
+        }
+      } catch (e) {
+        console.warn('Failed to load user document, creating new one', e);
+        // Create new document
+        handle = repo.create<UserDocument>();
+        handle.change((d) => {
+          const newDoc = createUserDocument(identity.did, identity.displayName || 'User');
+          Object.assign(d, newDoc);
+        });
+        saveUserDocId(handle.url);
+      }
+    } else {
+      // Create new user document
+      handle = repo.create<UserDocument>();
+      handle.change((d) => {
+        const newDoc = createUserDocument(identity.did, identity.displayName || 'User');
+        Object.assign(d, newDoc);
+      });
+      saveUserDocId(handle.url);
+    }
+
+    setUserDocId(handle.url);
+    setUserDocHandle(handle);
+  };
 
   const initializeDocument = async () => {
     // Check URL for shared document ID (e.g., #doc=automerge:...)
@@ -149,6 +224,11 @@ export function AppShell<TDoc>({
     setPublicKey(identity.publicKey); // Set public key for identity verification
     setDisplayName(identity.displayName); // Set display name for identity
 
+    // Initialize User Document if enabled
+    if (enableUserDocument) {
+      await initializeUserDocument(identity);
+    }
+
     const docIdToUse = urlDocId || savedDocId;
 
     if (docIdToUse) {
@@ -185,6 +265,9 @@ export function AppShell<TDoc>({
 
   const handleResetIdentity = () => {
     clearSharedIdentity();
+    if (enableUserDocument) {
+      clearUserDocId();
+    }
     window.location.reload();
   };
 
@@ -232,6 +315,11 @@ export function AppShell<TDoc>({
         displayName,
         onResetIdentity: handleResetIdentity,
         onNewDocument: handleNewDocument,
+        // User Document (only if enabled)
+        ...(enableUserDocument && {
+          userDocId,
+          userDocHandle,
+        }),
       })}
     </RepoContext.Provider>
   );

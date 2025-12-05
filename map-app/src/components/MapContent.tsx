@@ -10,8 +10,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { UserAvatar } from 'narrative-ui';
-import type { UserLocation } from '../schema/map-data';
+import { UserProfileModal, type ProfileAction, useProfileUrl } from 'narrative-ui';
+import type { UserLocation, MapDoc } from '../schema/map-data';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -30,6 +30,8 @@ export interface MapContentProps {
   onRemoveLocation: () => void;
   /** Get current user's location */
   getMyLocation: () => UserLocation | null;
+  /** The document (for profile lookup) */
+  doc: MapDoc;
 }
 
 export function MapContent({
@@ -40,13 +42,20 @@ export function MapContent({
   onSetLocation,
   onRemoveLocation,
   getMyLocation,
+  doc,
 }: MapContentProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
 
   const [isPlacingMarker, setIsPlacingMarker] = useState(false);
+
+  // URL-based profile support
+  const { profileDid, openProfile, closeProfile } = useProfileUrl();
   const [selectedUserDid, setSelectedUserDid] = useState<string | null>(null);
+
+  // Sync URL profile with local state
+  const activeProfileDid = profileDid || selectedUserDid;
 
   // Initialize map
   useEffect(() => {
@@ -119,12 +128,13 @@ export function MapContent({
         // Click on marker opens profile modal
         marker.on('click', () => {
           setSelectedUserDid(location.userDid);
+          openProfile(location.userDid);
         });
 
         currentMarkers.set(location.id, marker);
       }
     });
-  }, [locations, identities, hiddenUserDids, currentUserDid]);
+  }, [locations, identities, hiddenUserDids, currentUserDid, openProfile]);
 
   // Handle placing marker mode
   useEffect(() => {
@@ -148,9 +158,75 @@ export function MapContent({
   }, [isPlacingMarker, onSetLocation]);
 
   const myLocation = getMyLocation();
-  const selectedProfile = selectedUserDid ? identities[selectedUserDid] : null;
-  const selectedDisplayName = selectedProfile?.displayName || 'Anonymous';
-  const isSelectedCurrentUser = selectedUserDid === currentUserDid;
+  const isSelectedCurrentUser = activeProfileDid === currentUserDid;
+
+  // Handle closing the profile modal
+  const handleCloseProfile = () => {
+    setSelectedUserDid(null);
+    closeProfile();
+  };
+
+  // Custom actions for the profile modal (map-specific)
+  const customActions: ProfileAction[] = isSelectedCurrentUser
+    ? [
+        {
+          label: 'Update Location',
+          icon: (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          ),
+          onClick: () => {
+            handleCloseProfile();
+            setIsPlacingMarker(true);
+          },
+          variant: 'primary',
+          ownProfileOnly: true,
+        },
+        {
+          label: 'Remove from Map',
+          icon: (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          ),
+          onClick: () => {
+            onRemoveLocation();
+            handleCloseProfile();
+          },
+          variant: 'error',
+          ownProfileOnly: true,
+        },
+      ]
+    : [];
 
   return (
     <div className="w-full h-full relative">
@@ -215,100 +291,17 @@ export function MapContent({
         </button>
       </div>
 
-      {/* Profile Modal - Opens when clicking on a marker */}
-      {selectedUserDid && (
-        <div className="modal modal-open z-[9999]">
-          <div className="modal-box max-w-md">
-            <button
-              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-              onClick={() => setSelectedUserDid(null)}
-            >
-              ✕
-            </button>
-
-            <h3 className="font-bold text-lg mb-4">
-              {isSelectedCurrentUser ? 'Your Profile' : 'User Profile'}
-            </h3>
-
-            <div className="flex flex-col items-center gap-4 p-4 bg-base-200 rounded-lg">
-              <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-primary ring-offset-2 ring-offset-base-100">
-                <UserAvatar
-                  did={selectedUserDid}
-                  avatarUrl={selectedProfile?.avatarUrl}
-                  size={80}
-                />
-              </div>
-              <div className="text-center">
-                <div className="font-bold text-lg">{selectedDisplayName}</div>
-                {isSelectedCurrentUser && (
-                  <div className="badge badge-primary mt-1">You</div>
-                )}
-                <div className="text-xs text-base-content/50 break-all mt-2">
-                  {selectedUserDid}
-                </div>
-              </div>
-            </div>
-
-            {isSelectedCurrentUser && (
-              <div className="modal-action flex-col gap-2">
-                <button
-                  className="btn btn-primary w-full"
-                  onClick={() => {
-                    setSelectedUserDid(null);
-                    setIsPlacingMarker(true);
-                  }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  Update Location
-                </button>
-
-                <button
-                  className="btn btn-error btn-outline w-full"
-                  onClick={() => {
-                    onRemoveLocation();
-                    setSelectedUserDid(null);
-                  }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                  Remove from Map
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="modal-backdrop" onClick={() => setSelectedUserDid(null)}></div>
-        </div>
+      {/* Profile Modal - Opens when clicking on a marker or via URL */}
+      {activeProfileDid && (
+        <UserProfileModal
+          did={activeProfileDid}
+          isOpen={true}
+          onClose={handleCloseProfile}
+          doc={doc}
+          currentUserDid={currentUserDid}
+          customActions={customActions}
+          hideTrustActions={true}
+        />
       )}
     </div>
   );

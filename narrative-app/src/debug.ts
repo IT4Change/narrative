@@ -4,6 +4,7 @@
  */
 
 import type { OpinionGraphDoc } from './schema/opinion-graph';
+import type { UserDocument } from 'narrative-ui';
 
 /**
  * Helper to resolve DID to display name
@@ -24,6 +25,145 @@ export function exposeDocToConsole(doc: OpinionGraphDoc | null) {
     console.log('Try: __narrativeDoc.data.votes');
     console.log('Try: __narrativeDoc.data.tags');
   }
+}
+
+/**
+ * Expose the user document to the browser console for debugging
+ * Call this from your component: exposeUserDocToConsole(userDoc)
+ */
+export function exposeUserDocToConsole(userDoc: UserDocument | null | undefined) {
+  if (typeof window !== 'undefined') {
+    (window as any).__userDoc = userDoc;
+    console.log('👤 User document exposed as window.__userDoc');
+    console.log('Try: __userDoc.trustGiven');
+    console.log('Try: __userDoc.trustReceived');
+    console.log('Try: __userDoc.profile');
+    console.log('Try: __userDoc.workspaces');
+  }
+}
+
+/**
+ * Pretty print user document structure to console
+ */
+export function printUserDocStructure(userDoc: UserDocument | null | undefined) {
+  if (!userDoc) {
+    console.log('❌ No user document loaded');
+    return;
+  }
+
+  console.group('👤 User Document Structure');
+
+  console.group('📋 Profile');
+  console.log('DID:', userDoc.did);
+  console.log('Display Name:', userDoc.profile.displayName);
+  if (userDoc.profile.avatarUrl) {
+    console.log('Avatar:', userDoc.profile.avatarUrl.substring(0, 50) + '...');
+  }
+  console.groupEnd();
+
+  console.group('🤝 Trust Given (' + Object.keys(userDoc.trustGiven || {}).length + ')');
+  if (Object.keys(userDoc.trustGiven || {}).length > 0) {
+    console.table(Object.values(userDoc.trustGiven).map(t => ({
+      trusteeDid: t.trusteeDid.substring(0, 30) + '...',
+      level: t.level,
+      method: t.verificationMethod,
+      createdAt: new Date(t.createdAt).toLocaleString()
+    })));
+  } else {
+    console.log('No outgoing trust attestations');
+  }
+  console.groupEnd();
+
+  console.group('📥 Trust Received (' + Object.keys(userDoc.trustReceived || {}).length + ')');
+  if (Object.keys(userDoc.trustReceived || {}).length > 0) {
+    console.table(Object.values(userDoc.trustReceived).map(t => ({
+      trusterDid: t.trusterDid.substring(0, 30) + '...',
+      level: t.level,
+      method: t.verificationMethod,
+      createdAt: new Date(t.createdAt).toLocaleString()
+    })));
+  } else {
+    console.log('No incoming trust attestations');
+  }
+  console.groupEnd();
+
+  console.group('🏢 Workspaces (' + Object.keys(userDoc.workspaces || {}).length + ')');
+  if (Object.keys(userDoc.workspaces || {}).length > 0) {
+    console.table(Object.values(userDoc.workspaces).map(w => ({
+      name: w.name,
+      docId: w.docId.substring(0, 40) + '...',
+      lastAccessed: w.lastAccessedAt ? new Date(w.lastAccessedAt).toLocaleString() : 'N/A'
+    })));
+  } else {
+    console.log('No workspaces');
+  }
+  console.groupEnd();
+
+  console.group('🎫 Vouchers (' + Object.keys(userDoc.vouchers || {}).length + ')');
+  if (Object.keys(userDoc.vouchers || {}).length > 0) {
+    console.table(Object.values(userDoc.vouchers));
+  } else {
+    console.log('No vouchers');
+  }
+  console.groupEnd();
+
+  console.group('📊 User Doc Stats');
+  console.log('Version:', userDoc.version);
+  console.log('Last Modified:', new Date(userDoc.lastModified).toLocaleString());
+  console.log('Trust Given:', Object.keys(userDoc.trustGiven || {}).length);
+  console.log('Trust Received:', Object.keys(userDoc.trustReceived || {}).length);
+  console.log('Workspaces:', Object.keys(userDoc.workspaces || {}).length);
+  console.log('Vouchers:', Object.keys(userDoc.vouchers || {}).length);
+  console.groupEnd();
+
+  console.groupEnd();
+}
+
+/**
+ * Analyze trust relationships
+ */
+export function analyzeTrust(userDoc: UserDocument | null | undefined) {
+  if (!userDoc) {
+    console.log('❌ No user document loaded');
+    return;
+  }
+
+  console.group('🔍 Trust Analysis');
+
+  const trustGiven = Object.values(userDoc.trustGiven || {});
+  const trustReceived = Object.values(userDoc.trustReceived || {});
+
+  // Find mutual trust
+  const mutualTrust = trustGiven.filter(given =>
+    trustReceived.some(received => received.trusterDid === given.trusteeDid)
+  );
+
+  console.log('📤 Outgoing trust (you trust them):', trustGiven.length);
+  console.log('📥 Incoming trust (they trust you):', trustReceived.length);
+  console.log('🤝 Mutual trust (bidirectional):', mutualTrust.length);
+
+  if (mutualTrust.length > 0) {
+    console.group('Mutual Trust Partners');
+    mutualTrust.forEach(t => {
+      console.log('- ' + t.trusteeDid.substring(0, 40) + '...');
+    });
+    console.groupEnd();
+  }
+
+  // Pending trust (they trust you, but you don't trust them back)
+  const pendingTrust = trustReceived.filter(received =>
+    !trustGiven.some(given => given.trusteeDid === received.trusterDid)
+  );
+
+  if (pendingTrust.length > 0) {
+    console.group('⏳ Pending Trust (they trust you, you don\'t trust back)');
+    pendingTrust.forEach(t => {
+      console.log('- ' + t.trusterDid.substring(0, 40) + '...');
+    });
+    console.groupEnd();
+  }
+
+  console.groupEnd();
 }
 
 /**
@@ -230,7 +370,10 @@ if (typeof window !== 'undefined') {
     export: exportDocToJson,
     analyze: analyzeVotes,
     trace: traceAssumption,
-    findByUser: findAssumptionsByUser
+    findByUser: findAssumptionsByUser,
+    // User document functions
+    printUser: printUserDocStructure,
+    analyzeTrust: analyzeTrust
   };
 
   console.log('🛠️  Narrative Debug Tools loaded!');
@@ -240,4 +383,9 @@ if (typeof window !== 'undefined') {
   console.log('  __narrativeDebug.analyze(doc)   - Analyze vote patterns');
   console.log('  __narrativeDebug.trace(doc, id) - Trace assumption relationships');
   console.log('  __narrativeDebug.findByUser(doc, did) - Find user\'s assumptions');
+  console.log('');
+  console.log('User Document commands:');
+  console.log('  __userDoc                       - Access user document directly');
+  console.log('  __narrativeDebug.printUser(__userDoc) - Print user document structure');
+  console.log('  __narrativeDebug.analyzeTrust(__userDoc) - Analyze trust relationships');
 }
