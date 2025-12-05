@@ -364,33 +364,15 @@ export function useAppContext<TData = unknown>(
     // Get DIDs we already trust (bidirectional trust already exists)
     const alreadyTrustedDids = new Set(Object.keys(userDoc.trustGiven || {}));
 
-    console.log('🔔 Trust notification check:', {
-      incomingCount: incomingAttestations.length,
-      alreadyTrustedDids: Array.from(alreadyTrustedDids),
-      seenCount: seenIds.size,
-    });
-
     // Filter out:
     // - seen attestations
     // - self-attestations
     // - attestations from people we already trust (bidirectional already complete)
     const candidateAttestations = incomingAttestations.filter(
-      (attestation) => {
-        const isSeen = seenIds.has(attestation.id);
-        const isSelf = attestation.trusterDid === currentUserDid;
-        const alreadyTrusted = alreadyTrustedDids.has(attestation.trusterDid);
-
-        console.log('🔔 Checking attestation:', {
-          id: attestation.id,
-          trusterDid: attestation.trusterDid.substring(0, 20) + '...',
-          isSeen,
-          isSelf,
-          alreadyTrusted,
-          willShow: !isSeen && !isSelf && !alreadyTrusted,
-        });
-
-        return !isSeen && !isSelf && !alreadyTrusted;
-      }
+      (attestation) =>
+        !seenIds.has(attestation.id) &&
+        attestation.trusterDid !== currentUserDid &&
+        !alreadyTrustedDids.has(attestation.trusterDid)
     );
 
     // Verify signatures asynchronously

@@ -54,6 +54,12 @@ export {
   type UseUserDocumentResult,
 } from './hooks/useUserDocument';
 export { useProfileUrl } from './hooks/useProfileUrl';
+export {
+  useCrossTabSync,
+  notifyCrossTabSync,
+  getCrossTabState,
+  type CrossTabSyncOptions,
+} from './hooks/useCrossTabSync';
 
 // Components exports
 export { AppShell, type AppShellProps, type AppShellChildProps } from './components/AppShell';
@@ -127,3 +133,10 @@ export type {
   ModuleProps,
   ModuleDefinition,
 } from './modules/types';
+
+// Debug utilities exports
+export {
+  initDebugTools,
+  updateDebugState,
+  type NarrativeDebug,
+} from './utils/debug';

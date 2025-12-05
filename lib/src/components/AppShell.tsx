@@ -31,6 +31,8 @@ import {
   clearUserDocId,
 } from '../hooks/useUserDocument';
 import { LoadingScreen } from './LoadingScreen';
+import { initDebugTools } from '../utils/debug';
+import { useCrossTabSync } from '../hooks/useCrossTabSync';
 
 export interface AppShellChildProps {
   documentId: DocumentId;
@@ -111,6 +113,16 @@ export function AppShell<TDoc>({
   // User Document state (optional)
   const [userDocId, setUserDocId] = useState<string | undefined>(undefined);
   const [userDocHandle, setUserDocHandle] = useState<DocHandle<UserDocument> | undefined>(undefined);
+
+  // Initialize debug tools on mount
+  useEffect(() => {
+    initDebugTools();
+  }, []);
+
+  // Cross-tab sync: reload when identity changes in another tab
+  useCrossTabSync({
+    autoReloadOnIdentityChange: true,
+  });
 
   // Initialize document and identity on mount
   useEffect(() => {
