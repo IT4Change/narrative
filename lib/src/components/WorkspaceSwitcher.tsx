@@ -1,5 +1,7 @@
 /**
- * WorkspaceSwitcher - Dropdown for switching between workspaces
+ * WorkspaceSwitcher - Dropdown for switching between workspaces/documents
+ *
+ * Shared component for all Narrative apps.
  */
 
 export interface WorkspaceInfo {
@@ -63,7 +65,7 @@ export function WorkspaceSwitcher({
 
       <ul
         tabIndex={0}
-        className="dropdown-content menu bg-base-100 rounded-box z-[1000] mt-2 w-64 p-2 shadow-lg"
+        className="dropdown-content menu bg-base-100 rounded-box z-[2000] mt-6 w-64 p-2 shadow-lg"
       >
         {/* Current workspace indicator */}
         {currentWorkspace && (
@@ -178,9 +180,9 @@ export function WorkspaceSwitcher({
 /**
  * Load workspace list from localStorage
  */
-export function loadWorkspaceList(): WorkspaceInfo[] {
+export function loadWorkspaceList(storageKey = 'narrativeWorkspaces'): WorkspaceInfo[] {
   try {
-    const stored = localStorage.getItem('unifiedWorkspaces');
+    const stored = localStorage.getItem(storageKey);
     if (stored) {
       return JSON.parse(stored);
     }
@@ -193,9 +195,9 @@ export function loadWorkspaceList(): WorkspaceInfo[] {
 /**
  * Save workspace list to localStorage
  */
-export function saveWorkspaceList(workspaces: WorkspaceInfo[]): void {
+export function saveWorkspaceList(workspaces: WorkspaceInfo[], storageKey = 'narrativeWorkspaces'): void {
   try {
-    localStorage.setItem('unifiedWorkspaces', JSON.stringify(workspaces));
+    localStorage.setItem(storageKey, JSON.stringify(workspaces));
   } catch (e) {
     console.error('Failed to save workspace list:', e);
   }

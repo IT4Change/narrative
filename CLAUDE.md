@@ -4,17 +4,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Narrative is a local-first assumption tracking app where users capture single-sentence assumptions, tag them freely, and vote on them (🟢 agree / 🟡 neutral / 🔴 disagree). It uses Automerge CRDTs for offline-first, real-time collaboration without a central backend.
+Narrative is a local-first collaboration platform using Automerge CRDTs for offline-first, real-time collaboration without a central backend. The monorepo contains multiple apps that share a common library.
 
 ## Monorepo Structure
 
 ```
 narrative/
-├── app/   # React application (narrative-app)
-└── lib/   # Shared library (narrative-ui)
+├── narrative-app/   # Assumption tracking app
+├── dank-wallet/     # Decentralized voucher/currency system
+├── lib/             # Shared library (narrative-ui)
+├── shared-config/   # Shared Vite/TypeScript configuration
+└── scripts/         # Scaffolding and utility scripts
 ```
 
-The library (`lib/`) contains the schema and hooks used by the app. **The library must be built before the app** due to this dependency relationship.
+The library (`lib/`) contains shared components, hooks, and utilities used by all apps. **The library must be built before any app** due to this dependency relationship.
+
+## Creating New Apps
+
+Use the scaffolding script to create new apps:
+
+```bash
+npm run create-app <app-name> [--port <number>] [--title <string>]
+
+# Example:
+npm run create-app dank-wallet --port 3001 --title "Dank Wallet"
+```
+
+The script:
+
+- Creates the app directory with proper structure
+- Sets up Vite, Tailwind, TypeScript configuration
+- Uses the shared `AppShell` component for identity/document management
+- Adds convenience scripts to root `package.json`
+
+**IMPORTANT**: All apps MUST use the `AppShell` component from `narrative-ui`. This ensures consistent identity management, document loading, and UI patterns across all apps.
 
 ## Development Commands
 
@@ -71,14 +94,41 @@ The React frontend ([app/src/](app/src/)) is structured as:
 3. **useOpinionGraph hook** consumes the document and provides mutation/query functions
 4. **Components** call hook methods to update the CRDT, which auto-syncs across peers
 
-### Identity and Persistence
+### Identity and Cryptography
 
-- **Identity**: Each browser generates a keypair-derived DID on first run (format: `did:key:${timestamp}-${random}`)
-  - Stored in `localStorage` as `narrativeIdentity` (JSON: `{did, displayName}`)
-  - Display names are stored per-DID in `doc.identities` map
-- **Document ID**: Stored in both `localStorage` (`narrativeDocId`) and URL hash (`#doc=...`)
-  - URL hash enables document sharing between users
-  - Hash changes trigger document switching ([NarrativeApp.tsx:22-34](app/src/NarrativeApp.tsx#L22-L34))
+The system uses **real Ed25519 keypairs** with proper `did:key` format (not fake DIDs):
+
+- **DID Format**: `did:key:z6Mk...` (base58btc-encoded Ed25519 public key with multicodec prefix)
+- **Keypair Generation**: Uses Web Crypto API (`crypto.subtle.generateKey('Ed25519')`)
+- **Storage**: Identity stored in `localStorage` as `narrativeIdentity`:
+
+  ```json
+  {
+    "did": "did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH",
+    "displayName": "User-abc123",
+    "publicKey": "<base64-encoded-32-bytes>",
+    "privateKey": "<base64-encoded-pkcs8>"
+  }
+  ```
+
+**Key utilities** ([lib/src/utils/did.ts](lib/src/utils/did.ts)):
+
+- `generateDidIdentity()` - Create new identity with Ed25519 keypair
+- `deriveDidFromPublicKey()` - Derive `did:key` from public key bytes
+- `extractPublicKeyFromDid()` - Extract public key from `did:key` for verification
+- `isFakeDid()` - Detect legacy fake DIDs for migration
+
+**Signature utilities** ([lib/src/utils/signature.ts](lib/src/utils/signature.ts)):
+
+- `signJws()` - Sign data with JWS (JSON Web Signature) compact serialization
+- `verifyJws()` - Verify JWS signature with public key
+- `signEntity()` / `verifyEntitySignature()` - Sign/verify CRDT entities
+
+### Document Persistence
+
+- **Document ID**: Stored in both `localStorage` (`${storagePrefix}_docId`) and URL hash (`#doc=...`)
+- **URL hash enables document sharing** between users
+- **AppShell** handles all document loading/creation logic
 
 ### CRDT Document Structure
 

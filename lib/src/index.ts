@@ -34,9 +34,18 @@ export {
 // Hooks exports
 export { useRepository, type RepositoryOptions } from './hooks/useRepository';
 export { useTrustNotifications } from './hooks/useTrustNotifications';
+export { useAppContext, type UseAppContextOptions, type AppContextValue } from './hooks/useAppContext';
 
 // Components exports
 export { AppShell, type AppShellProps, type AppShellChildProps } from './components/AppShell';
+export { AppNavbar, type AppNavbarProps } from './components/AppNavbar';
+export {
+  WorkspaceSwitcher,
+  loadWorkspaceList,
+  saveWorkspaceList,
+  upsertWorkspace,
+  type WorkspaceInfo,
+} from './components/WorkspaceSwitcher';
 export { LoadingScreen } from './components/LoadingScreen';
 export { UserAvatar } from './components/UserAvatar';
 export { ProfileModal } from './components/ProfileModal';
@@ -44,6 +53,8 @@ export { CollaboratorsModal } from './components/CollaboratorsModal';
 export { QRScannerModal } from './components/QRScannerModal';
 export { TrustReciprocityModal } from './components/TrustReciprocityModal';
 export { Toast } from './components/Toast';
+export { NewWorkspaceModal, type NewWorkspaceModalProps } from './components/NewWorkspaceModal';
+export { AppLayout, type AppLayoutProps } from './components/AppLayout';
 
 // DID utilities exports
 export {
@@ -77,6 +88,8 @@ export {
   loadDocumentId,
   saveDocumentId,
   clearDocumentId,
+  exportIdentityToFile,
+  importIdentityFromFile,
 } from './utils/storage';
 
 // Image processing utilities exports

@@ -53,11 +53,15 @@ export interface BaseDocument<TData = unknown> {
  *
  * @param initialData - App-specific initial data
  * @param creatorIdentity - Identity of the user creating the document
+ * @param workspaceName - Optional workspace/context name
+ * @param workspaceAvatar - Optional workspace avatar (data URL)
  * @returns BaseDocument with initialized identity and empty trust attestations
  */
 export function createBaseDocument<TData>(
   initialData: TData,
-  creatorIdentity: UserIdentity
+  creatorIdentity: UserIdentity,
+  workspaceName?: string,
+  workspaceAvatar?: string
 ): BaseDocument<TData> {
   // Build identity profile from creator identity
   const profile: IdentityProfile = {};
@@ -71,9 +75,19 @@ export function createBaseDocument<TData>(
     profile.publicKey = creatorIdentity.publicKey;
   }
 
+  // Build context metadata if workspace info provided
+  const context: ContextMetadata | undefined =
+    workspaceName || workspaceAvatar
+      ? {
+          name: workspaceName || 'Workspace',
+          avatar: workspaceAvatar,
+        }
+      : undefined;
+
   return {
     version: '1.0.0',
     lastModified: Date.now(),
+    ...(context && { context }),
     identities: {
       [creatorIdentity.did]: profile,
     },

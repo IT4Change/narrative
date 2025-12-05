@@ -106,16 +106,23 @@ export type MarketAppDoc = BaseDocument<MarketAppData>;
 
 /**
  * Creates an empty Marktplatz document
+ * @param creatorIdentity - Identity of the user creating the document
+ * @param workspaceName - Optional workspace name
+ * @param workspaceAvatar - Optional workspace avatar (data URL)
  */
 export function createEmptyMarketAppDoc(
-  creatorIdentity: UserIdentity
+  creatorIdentity: UserIdentity,
+  workspaceName?: string,
+  workspaceAvatar?: string
 ): MarketAppDoc {
   return createBaseDocument<MarketAppData>(
     {
       listings: {},
       reactions: {},
     },
-    creatorIdentity
+    creatorIdentity,
+    workspaceName,
+    workspaceAvatar
   );
 }
 

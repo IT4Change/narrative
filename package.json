@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "workspaces": [
+    "dank-app",
     "map-app",
     "market-app",
     "narrative-app",
@@ -12,21 +13,26 @@
   ],
   "scripts": {
     "create-app": "node scripts/create-app.mjs",
-    "dev": "npm run dev --workspace=narrative-app",
+    "dev": "run-p dev:narrative dev:map dev:market dev:unified dev:dank",
+    "dev:narrative": "npm run dev --workspace=narrative-app",
     "dev:map": "npm run dev --workspace=map-app",
     "dev:market": "npm run dev --workspace=market-app",
     "dev:unified": "npm run dev --workspace=unified-app",
-    "build": "npm run build --workspace=lib && npm run build --workspace=narrative-app && npm run build --workspace=map-app && npm run build --workspace=market-app && npm run build --workspace=unified-app",
+    "dev:dank": "npm run dev --workspace=dank-app",
+    "build": "run-s build:lib build:apps",
     "build:lib": "npm run build --workspace=lib",
-    "build:app": "npm run build --workspace=narrative-app",
+    "build:apps": "run-p build:narrative build:map build:market build:unified build:dank",
+    "build:narrative": "npm run build --workspace=narrative-app",
     "build:map": "npm run build --workspace=map-app",
     "build:market": "npm run build --workspace=market-app",
     "build:unified": "npm run build --workspace=unified-app",
+    "build:dank": "npm run build --workspace=dank-app",
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "npm-run-all2": "^8.0.4",
     "typescript": "^5.6.0"
   }
 }

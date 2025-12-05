@@ -116,10 +116,14 @@ export interface VoteSummary {
  * Create empty opinion graph document
  *
  * @param creatorIdentity - Identity of the user creating the document
+ * @param workspaceName - Optional workspace name
+ * @param workspaceAvatar - Optional workspace avatar (data URL)
  * @returns OpinionGraphDoc with empty collections
  */
 export function createEmptyOpinionGraphDoc(
-  creatorIdentity: UserIdentity
+  creatorIdentity: UserIdentity,
+  workspaceName?: string,
+  workspaceAvatar?: string
 ): OpinionGraphDoc {
   return createBaseDocument<OpinionGraphData>(
     {
@@ -130,7 +134,9 @@ export function createEmptyOpinionGraphDoc(
       identity: creatorIdentity,  // Keep for backward compatibility
       createdBy: creatorIdentity.did,
     },
-    creatorIdentity
+    creatorIdentity,
+    workspaceName,
+    workspaceAvatar
   );
 }
 

@@ -31,7 +31,7 @@ export interface AppShellChildProps {
   publicKey?: string;
   displayName?: string;
   onResetIdentity: () => void;
-  onNewDocument: () => void;
+  onNewDocument: (name?: string, avatarDataUrl?: string) => void;
 }
 
 export interface AppShellProps<TDoc> {
@@ -43,8 +43,11 @@ export interface AppShellProps<TDoc> {
 
   /**
    * Factory function to create empty document with user identity
+   * @param identity - User identity
+   * @param workspaceName - Optional workspace name
+   * @param workspaceAvatar - Optional workspace avatar (data URL)
    */
-  createEmptyDocument: (identity: UserIdentity) => TDoc;
+  createEmptyDocument: (identity: UserIdentity, workspaceName?: string, workspaceAvatar?: string) => TDoc;
 
   /**
    * localStorage key prefix for this app (e.g., 'narrative', 'mapapp')
@@ -185,7 +188,7 @@ export function AppShell<TDoc>({
     window.location.reload();
   };
 
-  const handleNewDocument = async () => {
+  const handleNewDocument = async (workspaceName?: string, workspaceAvatar?: string) => {
     const storedIdentity = loadSharedIdentity();
     let identity = storedIdentity;
 
@@ -203,7 +206,7 @@ export function AppShell<TDoc>({
       saveSharedIdentity(identity);
     }
 
-    const handle = repo.create(createEmptyDocument(identity));
+    const handle = repo.create(createEmptyDocument(identity, workspaceName, workspaceAvatar));
     const docId = handle.documentId;
     saveDocumentId(storagePrefix, docId);
 

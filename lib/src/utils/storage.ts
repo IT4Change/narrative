@@ -114,3 +114,66 @@ export function clearDocumentId(appPrefix: string): void {
     console.error(`Failed to clear document ID for ${appPrefix}:`, error);
   }
 }
+
+/**
+ * Export identity to a downloadable JSON file
+ *
+ * @param filename - Optional custom filename (defaults to 'narrative-identity-{timestamp}.json')
+ */
+export function exportIdentityToFile(filename?: string): void {
+  const identity = loadSharedIdentity();
+  if (!identity) {
+    console.warn('No identity to export');
+    return;
+  }
+
+  const blob = new Blob([JSON.stringify(identity)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || `narrative-identity-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Import identity from a file picker dialog
+ *
+ * @param onSuccess - Optional callback on successful import (before reload)
+ * @param onError - Optional callback on error
+ */
+export function importIdentityFromFile(
+  onSuccess?: () => void,
+  onError?: (error: string) => void
+): void {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json';
+  input.onchange = (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const importedIdentity = JSON.parse(content) as StoredIdentity;
+
+        if (!importedIdentity.did) {
+          throw new Error('Invalid identity file: missing DID');
+        }
+
+        saveSharedIdentity(importedIdentity);
+        onSuccess?.();
+        window.location.reload();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Ungültige Identity-Datei';
+        onError?.(message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}

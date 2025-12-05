@@ -50,16 +50,22 @@ export function generateId(): string {
 /**
  * Create an empty map document
  * @param creatorIdentity - Identity of the user creating the document
+ * @param workspaceName - Optional workspace name
+ * @param workspaceAvatar - Optional workspace avatar (data URL)
  * @returns MapDoc with empty collections
  */
-export function createEmptyMapDoc(creatorIdentity: UserIdentity): MapDoc {
-  const baseDoc = createBaseDocument<MapData>(
+export function createEmptyMapDoc(
+  creatorIdentity: UserIdentity,
+  workspaceName?: string,
+  workspaceAvatar?: string
+): MapDoc {
+  return createBaseDocument<MapData>(
     {
       locations: {},
       createdBy: creatorIdentity.did,
     },
-    creatorIdentity
+    creatorIdentity,
+    workspaceName,
+    workspaceAvatar
   );
-
-  return baseDoc;
 }

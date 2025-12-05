@@ -115,7 +115,22 @@ export function useMapDocument(
 
       docHandle.change((d) => {
         ensureIdentityProfile(d);
-        d.data.locations[locationId] = locationData;
+        // Build location object without undefined values (Automerge doesn't allow undefined)
+        const newLocation: UserLocation = {
+          id: locationId,
+          userDid: currentUserDid,
+          lat,
+          lng,
+          createdAt: now,
+          updatedAt: now,
+        };
+        if (label !== undefined) {
+          newLocation.label = label;
+        }
+        if (locationData.signature) {
+          newLocation.signature = locationData.signature;
+        }
+        d.data.locations[locationId] = newLocation;
         d.lastModified = Date.now();
       });
     }

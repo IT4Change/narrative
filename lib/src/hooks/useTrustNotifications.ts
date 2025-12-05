@@ -78,11 +78,19 @@ export function useTrustNotifications<TData = unknown>(
       (attestation) => attestation.trusteeDid === currentUserDid
     );
 
-    // Filter out seen attestations and self-attestations
+    // Find DIDs that the current user already trusts
+    const alreadyTrustedDids = new Set(
+      Object.values(doc.trustAttestations)
+        .filter((att) => att.trusterDid === currentUserDid)
+        .map((att) => att.trusteeDid)
+    );
+
+    // Filter out seen attestations, self-attestations, and users we already trust
     const newAttestations = incomingAttestations.filter(
       (attestation) =>
         !seenIds.has(attestation.id) &&
-        attestation.trusterDid !== currentUserDid
+        attestation.trusterDid !== currentUserDid &&
+        !alreadyTrustedDids.has(attestation.trusterDid)
     );
 
     // Sort by creation time (oldest first)

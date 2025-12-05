@@ -312,15 +312,19 @@ export default App;
 fs.writeFileSync(path.join(appDir, 'src', 'App.tsx'), appTsx);
 
 // Create src/components/MainView.tsx
-const mainViewTsx = `import { useState, useEffect } from 'react';
+const mainViewTsx = `import { useState, useEffect, useCallback } from 'react';
 import type { DocumentId } from '@automerge/automerge-repo';
-import { useRepo } from '@automerge/automerge-repo-react-hooks';
-import { useDocument } from '@automerge/automerge-repo-react-hooks';
+import { useRepo, useDocument } from '@automerge/automerge-repo-react-hooks';
 import {
-  UserAvatar,
+  AppNavbar,
   ProfileModal,
   CollaboratorsModal,
+  QRScannerModal,
   addTrustAttestation,
+  loadWorkspaceList,
+  saveWorkspaceList,
+  upsertWorkspace,
+  type WorkspaceInfo,
 } from 'narrative-ui';
 import type { ${pascalName}Doc } from '../schema';
 import { exposeDocToConsole } from '../debug';
@@ -334,6 +338,8 @@ interface MainViewProps {
   onResetIdentity: () => void;
   onNewDocument: () => void;
 }
+
+const WORKSPACE_STORAGE_KEY = '${camelName}Workspaces';
 
 export function MainView({
   documentId,
@@ -349,12 +355,49 @@ export function MainView({
   // UI State
   const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [hiddenUserDids, setHiddenUserDids] = useState<Set<string>>(new Set());
+  const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>(() =>
+    loadWorkspaceList(WORKSPACE_STORAGE_KEY)
+  );
+
+  const logoUrl = \`\${import.meta.env.BASE_URL}logo.svg\`;
 
   // Expose doc to console for debugging
   useEffect(() => {
     exposeDocToConsole(doc ?? null);
   }, [doc]);
+
+  // Track current workspace
+  useEffect(() => {
+    if (!doc) return;
+
+    const workspaceInfo: WorkspaceInfo = {
+      id: documentId.toString(),
+      name: doc.context?.name || '${title}',
+      avatar: doc.context?.avatar,
+      lastAccessed: Date.now(),
+    };
+
+    setWorkspaces((prev) => {
+      const updated = upsertWorkspace(prev, workspaceInfo);
+      saveWorkspaceList(updated, WORKSPACE_STORAGE_KEY);
+      return updated;
+    });
+  }, [documentId, doc?.context?.name, doc?.context?.avatar]);
+
+  const currentWorkspace: WorkspaceInfo | null = doc
+    ? {
+        id: documentId.toString(),
+        name: doc.context?.name || '${title}',
+        avatar: doc.context?.avatar,
+        lastAccessed: Date.now(),
+      }
+    : null;
+
+  const handleSwitchWorkspace = useCallback((workspaceId: string) => {
+    window.location.hash = \`doc=\${workspaceId}\`;
+  }, []);
 
   const toggleUserVisibility = (did: string) => {
     setHiddenUserDids((prev) => {
@@ -444,86 +487,38 @@ export function MainView({
     );
   }
 
-  const currentUserName = displayName || doc.identities[currentUserDid]?.displayName || currentUserDid.slice(0, 12) + '...';
-
   return (
-    <div className="min-h-screen bg-base-200">
-      {/* Navbar */}
-      <div className="navbar bg-base-100 shadow-lg sticky top-0 z-10">
-        <div className="flex-1">
-          <span className="text-xl font-bold px-4">${title}</span>
-        </div>
-        <div className="flex-none gap-2 pr-2">
-          <div className="flex items-center gap-2">
-            <UserAvatar
-              did={currentUserDid}
-              avatarUrl={doc.identities[currentUserDid]?.avatarUrl}
-              size={32}
-            />
-            <span className="text-sm hidden sm:inline">{currentUserName}</span>
-          </div>
-          {/* User Menu */}
-          <div className="dropdown dropdown-end">
-            <div tabIndex={0} role="button" className="btn btn-sm btn-ghost">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-              </svg>
-            </div>
-            <ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-6 w-52 p-2 shadow">
-              <li>
-                <a onClick={() => setShowIdentityModal(true)}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Profil
-                </a>
-              </li>
-              <li>
-                <a onClick={() => setShowFriendsModal(true)}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  Teilnehmer
-                </a>
-              </li>
-              <div className="divider my-1"></div>
-              <li>
-                <a onClick={onNewDocument}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v12m6-6H6" />
-                  </svg>
-                  Neues Dokument
-                </a>
-              </li>
-              <li>
-                <a onClick={handleShareClick}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                  Link teilen
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-base-200 flex flex-col">
+      {/* Shared Navbar */}
+      <AppNavbar
+        currentUserDid={currentUserDid}
+        identities={doc.identities}
+        logoUrl={logoUrl}
+        currentWorkspace={currentWorkspace}
+        workspaces={workspaces}
+        onSwitchWorkspace={handleSwitchWorkspace}
+        onNewWorkspace={onNewDocument}
+        onShowProfile={() => setShowIdentityModal(true)}
+        onShowCollaborators={() => setShowFriendsModal(true)}
+        onShowVerify={() => setShowVerifyModal(true)}
+        onShareLink={handleShareClick}
+      />
 
       {/* Main Content */}
-      <div className="container mx-auto p-4">
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body">
-            <h2 className="card-title">Welcome to ${title}!</h2>
-            <p>
-              Your new Narrative app is ready. Edit{' '}
-              <code className="bg-base-200 px-1 rounded">src/components/MainView.tsx</code>{' '}
-              to get started.
-            </p>
-            <p className="text-sm opacity-70">
-              Document: {documentId.slice(0, 20)}...
-            </p>
-            <p className="text-sm opacity-70">
-              Connected as: {currentUserName}
-            </p>
+      <div className="flex-1 overflow-y-auto">
+        <div className="container mx-auto p-4 max-w-4xl">
+          <div className="card bg-base-100 shadow-xl">
+            <div className="card-body">
+              <h2 className="card-title">Welcome to ${title}!</h2>
+              <p>
+                Your new Narrative app is ready. Edit{' '}
+                <code className="bg-base-200 px-1 rounded">src/components/MainView.tsx</code>{' '}
+                to get started.
+              </p>
+              <p className="text-sm opacity-70">
+                Document: {documentId.slice(0, 20)}...
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -548,6 +543,14 @@ export function MainView({
         currentUserDid={currentUserDid}
         hiddenUserDids={hiddenUserDids}
         onToggleUserVisibility={toggleUserVisibility}
+        onTrustUser={handleTrustUser}
+      />
+
+      <QRScannerModal
+        isOpen={showVerifyModal}
+        onClose={() => setShowVerifyModal(false)}
+        currentUserDid={currentUserDid}
+        doc={doc}
         onTrustUser={handleTrustUser}
       />
     </div>

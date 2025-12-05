@@ -1,23 +1,13 @@
 import { DocumentId } from '@automerge/automerge-repo';
 import { useRepo } from '@automerge/automerge-repo-react-hooks';
-import {
-  ProfileModal,
-  CollaboratorsModal,
-  UserAvatar,
-  addTrustAttestation,
-  useTrustNotifications,
-  TrustReciprocityModal,
-  Toast,
-  QRScannerModal,
-} from 'narrative-ui';
+import { AppLayout, type AppContextValue } from 'narrative-ui';
 import { useOpinionGraph } from '../hooks/useOpinionGraph';
 import type { OpinionGraphDoc } from '../schema/opinion-graph';
 import { AssumptionList } from './AssumptionList';
 import { CreateAssumptionModal } from './CreateAssumptionModal';
 import { ImportModal } from './ImportModal';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { exposeDocToConsole } from '../debug';
-
 
 interface MainViewProps {
   documentId: DocumentId;
@@ -26,246 +16,41 @@ interface MainViewProps {
   publicKey?: string;
   displayName?: string;
   onResetIdentity: () => void;
-  onNewDocument: () => void;
+  onNewDocument: (name?: string, avatarDataUrl?: string) => void;
 }
 
 /**
- * Main application view with AppShell layout
+ * Main application view with AppLayout
  * Shows list of assumptions and allows creating new ones
  */
-export function MainView({ documentId, currentUserDid, privateKey, publicKey, displayName, onResetIdentity, onNewDocument }: MainViewProps) {
+export function MainView({
+  documentId,
+  currentUserDid,
+  privateKey,
+  publicKey,
+  displayName,
+  onResetIdentity,
+  onNewDocument,
+}: MainViewProps) {
   const repo = useRepo();
   const docHandle = repo.find<OpinionGraphDoc>(documentId);
   const narrative = useOpinionGraph(documentId, docHandle, currentUserDid, privateKey, publicKey, displayName);
+
+  // App-specific UI state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [sortBy, setSortBy] = useState<'votes' | 'agree' | 'recent' | 'created'>('created');
-  const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showFriendsModal, setShowFriendsModal] = useState(false);
-  const [showVerifyScanner, setShowVerifyScanner] = useState(false);
-  const [hiddenUserDids, setHiddenUserDids] = useState<Set<string>>(new Set());
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
   const [webOfTrustFilter, setWebOfTrustFilter] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const logoUrl = `${import.meta.env.BASE_URL}logo.svg`;
 
-  // Trust notifications
-  const { pendingAttestations, markAsSeen } = useTrustNotifications(
-    narrative?.doc,
-    currentUserDid,
-    documentId.toString()
-  );
-
+  // Debug
   useEffect(() => {
     if (narrative?.doc) {
       exposeDocToConsole(narrative.doc);
     }
   }, [narrative?.doc]);
-
-  const toggleUserVisibility = (did: string) => {
-    setHiddenUserDids((prev) => {
-      const next = new Set(prev);
-      if (next.has(did)) {
-        next.delete(did);
-      } else {
-        next.add(did);
-      }
-      return next;
-    });
-  };
-
-  const handleTrustUser = (trusteeDid: string) => {
-    console.log('handleTrustUser called', { currentUserDid, trusteeDid });
-    docHandle.change((d) => {
-      console.log('Before addTrustAttestation:', Object.keys(d.trustAttestations).length);
-      const attestationId = addTrustAttestation(
-        d,
-        currentUserDid,
-        trusteeDid,
-        'verified',
-        'in-person'
-      );
-      console.log('After addTrustAttestation:', { attestationId, count: Object.keys(d.trustAttestations).length });
-      d.lastModified = Date.now();
-    });
-
-    // If there's a reciprocal attestation (they already trusted us), mark it as seen
-    // so we don't get asked again via TrustReciprocityModal
-    const reciprocalAttestation = pendingAttestations.find(
-      att => att.trusterDid === trusteeDid && att.trusteeDid === currentUserDid
-    );
-    if (reciprocalAttestation) {
-      markAsSeen(reciprocalAttestation.id);
-    }
-  };
-
-  const handleTrustBack = (trusterDid: string) => {
-    // Create reciprocal trust attestation
-    docHandle.change((d) => {
-      addTrustAttestation(d, currentUserDid, trusterDid, 'verified', 'in-person');
-      d.lastModified = Date.now();
-    });
-
-    // Mark the incoming attestation as seen
-    const attestation = pendingAttestations.find(att => att.trusterDid === trusterDid);
-    if (attestation) {
-      markAsSeen(attestation.id);
-    }
-  };
-
-  const handleDeclineTrust = (attestationId: string) => {
-    // Just mark as seen, don't create reciprocal trust
-    markAsSeen(attestationId);
-  };
-
-  const showToast = (message: string) => {
-    setToastMessage(message);
-  };
-
-  // Wrapper functions that filter by hidden users
-  const getFilteredVotesForAssumption = (assumptionId: string) => {
-    const votes = narrative?.getVotesForAssumption(assumptionId) || [];
-    return votes.filter((vote) => !hiddenUserDids.has(vote.voterDid));
-  };
-
-  const getFilteredEditsForAssumption = (assumptionId: string) => {
-    const edits = narrative?.getEditsForAssumption(assumptionId) || [];
-    return edits.filter((edit) => !hiddenUserDids.has(edit.editorDid));
-  };
-
-  const getFilteredVoteSummary = (assumptionId: string) => {
-    // Recalculate summary with filtered votes
-    const filteredVotes = getFilteredVotesForAssumption(assumptionId);
-    const green = filteredVotes.filter((v) => v.value === 'green').length;
-    const yellow = filteredVotes.filter((v) => v.value === 'yellow').length;
-    const red = filteredVotes.filter((v) => v.value === 'red').length;
-
-    // Find current user's vote
-    const userVote = filteredVotes.find((v) => v.voterDid === currentUserDid)?.value;
-
-    return {
-      green,
-      yellow,
-      red,
-      total: green + yellow + red,
-      userVote,
-    };
-  };
-
-  const sortedAssumptions = useMemo(() => {
-    if (!narrative) return [];
-
-    const getLastVoteTs = (assumptionId: string) => {
-      const votes = narrative.doc.data.votes;
-      return (
-        narrative.doc.data.assumptions[assumptionId]?.voteIds
-          .map((id) => votes[id])
-          .filter((v): v is NonNullable<typeof votes[string]> => Boolean(v))
-          .filter((v) => !hiddenUserDids.has(v.voterDid)) // Filter hidden users
-          .reduce((latest, vote) => Math.max(latest, vote.updatedAt ?? vote.createdAt), 0) || 0
-      );
-    };
-
-    // Filter out assumptions from hidden users
-    const withoutHidden = narrative.assumptions.filter(
-      (a) => !hiddenUserDids.has(a.createdBy)
-    );
-
-    // Apply Web of Trust filter if active
-    const withTrustFilter = webOfTrustFilter
-      ? withoutHidden.filter((a) => {
-          // Include if created by current user OR by a trusted user
-          if (a.createdBy === currentUserDid) return true;
-          const trustAttestation = narrative.doc.trustAttestations
-            ? Object.values(narrative.doc.trustAttestations).find(
-                (att) => att.trusterDid === currentUserDid && att.trusteeDid === a.createdBy
-              )
-            : undefined;
-          return trustAttestation !== undefined;
-        })
-      : withoutHidden;
-
-    const filtered = activeTagFilter
-      ? withTrustFilter.filter((a) => a.tagIds.includes(activeTagFilter))
-      : withTrustFilter;
-
-    return [...filtered].sort((a, b) => {
-      const summaryA = getFilteredVoteSummary(a.id);
-      const summaryB = getFilteredVoteSummary(b.id);
-
-      const totalA = summaryA.total;
-      const totalB = summaryB.total;
-      const agreeRateA = totalA ? summaryA.green / totalA : 0;
-      const agreeRateB = totalB ? summaryB.green / totalB : 0;
-      const lastVoteA = getLastVoteTs(a.id);
-      const lastVoteB = getLastVoteTs(b.id);
-
-      if (sortBy === 'votes') {
-        return totalB - totalA || agreeRateB - agreeRateA || lastVoteB - lastVoteA || b.createdAt - a.createdAt;
-      }
-      if (sortBy === 'agree') {
-        return agreeRateB - agreeRateA || totalB - totalA || lastVoteB - lastVoteA || b.createdAt - a.createdAt;
-      }
-      if (sortBy === 'created') {
-        return b.createdAt - a.createdAt || lastVoteB - lastVoteA || totalB - totalA;
-      }
-      // recent
-      return lastVoteB - lastVoteA || totalB - totalA || agreeRateB - agreeRateA || b.createdAt - a.createdAt;
-    });
-  }, [narrative, sortBy, narrative?.doc?.lastModified, activeTagFilter, webOfTrustFilter, hiddenUserDids, currentUserDid]);
-
-  const handleShareClick = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      setShowCopiedToast(true);
-      setTimeout(() => setShowCopiedToast(false), 2000);
-    });
-  };
-
-
-  const handleExportIdentity = () => {
-    const savedIdentity = localStorage.getItem('narrativeIdentity');
-    if (!savedIdentity) return;
-
-    const blob = new Blob([savedIdentity], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `opinion-graph-identity-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportIdentity = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const identity = JSON.parse(event.target?.result as string);
-          if (identity.did && identity.displayName) {
-            localStorage.setItem('narrativeIdentity', JSON.stringify(identity));
-            window.location.reload();
-          } else {
-            alert('Invalid identity file');
-          }
-        } catch (error) {
-          alert('Error reading identity file');
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
-
 
   const handleImportAssumptions = async (importText: string) => {
     if (!narrative) return;
@@ -286,239 +71,200 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
     }
   };
 
-  // Wait for document to load
-  if (!narrative) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-base-200">
-        <div className="text-center">
-          <span className="loading loading-spinner loading-lg text-primary"></span>
-          <p className="mt-4 text-base-content">Loading document...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="w-screen h-screen bg-base-200 flex flex-col overflow-hidden">
-      {/* Navbar */}
-      <div className="navbar bg-base-100 shadow-lg z-20 flex-shrink-0">
-        <div className="flex-1">
-          <a className="btn btn-ghost text-xl flex items-center gap-2">
-            <img src={logoUrl} alt="Narrative" className="h-12 pb-2 text-current" />
-            <span>Narrative</span>
-          </a>
-        </div>
-        <div className="flex-none gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              className="w-11 h-11 rounded-full overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              onClick={() => setShowIdentityModal(true)}
-              title="Profil öffnen"
-            >
-              <UserAvatar
-                did={currentUserDid}
-                avatarUrl={narrative?.doc?.identities?.[currentUserDid]?.avatarUrl}
-                size={44}
-              />
-            </button>
-            <span className="hidden lg:block font-medium">
-              {narrative?.doc?.identities?.[currentUserDid]?.displayName || 'Anonymous'}
-            </span>
-          </div>
-          <div className="dropdown dropdown-end">
-            <div tabIndex={0} role="button" className="btn btn-sm btn-ghost">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-              </svg>
-            </div>
-            <ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-6 w-52 p-2 shadow">
-              <li>
-                <a onClick={() => setShowIdentityModal(true)}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                  Profil
-                </a>
-              </li>
-              <li>
-                <a onClick={() => setShowFriendsModal(true)}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
-                  Collaborators
-                </a>
-              </li>
-              <li>
-                <a onClick={() => setShowVerifyScanner(true)}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                    />
-                  </svg>
-                  Verify
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
+    <AppLayout
+      doc={narrative?.doc}
+      docHandle={docHandle}
+      documentId={documentId.toString()}
+      currentUserDid={currentUserDid}
+      appTitle="Narrative"
+      workspaceName="Narrative Board"
+      hideWorkspaceSwitcher={false}
+      logoUrl={logoUrl}
+      onResetIdentity={onResetIdentity}
+      onCreateWorkspace={onNewDocument}
+      onUpdateIdentityInDoc={narrative?.updateIdentity}
+    >
+      {(ctx: AppContextValue) => {
+        // Wrapper functions that filter by hidden users
+        const getFilteredVotesForAssumption = (assumptionId: string) => {
+          const votes = narrative?.getVotesForAssumption(assumptionId) || [];
+          return votes.filter((vote) => !ctx.hiddenUserDids.has(vote.voterDid));
+        };
 
+        const getFilteredEditsForAssumption = (assumptionId: string) => {
+          const edits = narrative?.getEditsForAssumption(assumptionId) || [];
+          return edits.filter((edit) => !ctx.hiddenUserDids.has(edit.editorDid));
+        };
 
+        const getFilteredVoteSummary = (assumptionId: string) => {
+          const filteredVotes = getFilteredVotesForAssumption(assumptionId);
+          const green = filteredVotes.filter((v) => v.value === 'green').length;
+          const yellow = filteredVotes.filter((v) => v.value === 'yellow').length;
+          const red = filteredVotes.filter((v) => v.value === 'red').length;
+          const userVote = filteredVotes.find((v) => v.voterDid === currentUserDid)?.value;
 
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
-        {/* Main Content */}
-        <div className="container mx-auto p-10 pt-8 pb-24 max-w-6xl w-full">
-          <div className="mb-6">
-            <div className="flex flex-wrap items-center gap-3 justify-between">
-              <div className="flex flex-wrap gap-2 mt-3">
-                {/* Web of Trust Filter */}
-                <button
-                  className={`badge gap-1 p-4 cursor-pointer transition-all ${
-                    webOfTrustFilter
-                      ? 'badge-success'
-                      : 'badge-ghost border-base-300 hover:border-success'
-                  }`}
-                  onClick={() => setWebOfTrustFilter(!webOfTrustFilter)}
-                  title={webOfTrustFilter ? 'Nur Web of Trust' : 'Alle Assumptions'}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                    />
-                  </svg>
-                  <span>{webOfTrustFilter ? 'Web of Trust' : 'Alle'}</span>
-                </button>
+          return {
+            green,
+            yellow,
+            red,
+            total: green + yellow + red,
+            userVote,
+          };
+        };
 
-                {/* Tag Filter */}
-                {activeTagFilter && (
-                  <div className="badge badge-primary gap-1 p-4 pr-1">
-                    <span>{narrative.tags.find((t) => t.id === activeTagFilter)?.name ?? 'Tag'}</span>
-                    <button
-                      className="btn btn-ghost btn-xs"
-                      onClick={() => setActiveTagFilter(null)}
-                      aria-label="Filter entfernen"
-                    >
-                      ✕
-                    </button>
+        const sortedAssumptions = (() => {
+          if (!narrative) return [];
+
+          const getLastVoteTs = (assumptionId: string) => {
+            const votes = narrative.doc.data.votes;
+            return (
+              narrative.doc.data.assumptions[assumptionId]?.voteIds
+                .map((id) => votes[id])
+                .filter((v): v is NonNullable<typeof votes[string]> => Boolean(v))
+                .filter((v) => !ctx.hiddenUserDids.has(v.voterDid))
+                .reduce((latest, vote) => Math.max(latest, vote.updatedAt ?? vote.createdAt), 0) || 0
+            );
+          };
+
+          // Filter out assumptions from hidden users
+          const withoutHidden = narrative.assumptions.filter(
+            (a) => !ctx.hiddenUserDids.has(a.createdBy)
+          );
+
+          // Apply Web of Trust filter if active
+          const withTrustFilter = webOfTrustFilter
+            ? withoutHidden.filter((a) => {
+                if (a.createdBy === currentUserDid) return true;
+                const trustAttestation = narrative.doc.trustAttestations
+                  ? Object.values(narrative.doc.trustAttestations).find(
+                      (att) => att.trusterDid === currentUserDid && att.trusteeDid === a.createdBy
+                    )
+                  : undefined;
+                return trustAttestation !== undefined;
+              })
+            : withoutHidden;
+
+          const filtered = activeTagFilter
+            ? withTrustFilter.filter((a) => a.tagIds.includes(activeTagFilter))
+            : withTrustFilter;
+
+          return [...filtered].sort((a, b) => {
+            const summaryA = getFilteredVoteSummary(a.id);
+            const summaryB = getFilteredVoteSummary(b.id);
+
+            const totalA = summaryA.total;
+            const totalB = summaryB.total;
+            const agreeRateA = totalA ? summaryA.green / totalA : 0;
+            const agreeRateB = totalB ? summaryB.green / totalB : 0;
+            const lastVoteA = getLastVoteTs(a.id);
+            const lastVoteB = getLastVoteTs(b.id);
+
+            if (sortBy === 'votes') {
+              return totalB - totalA || agreeRateB - agreeRateA || lastVoteB - lastVoteA || b.createdAt - a.createdAt;
+            }
+            if (sortBy === 'agree') {
+              return agreeRateB - agreeRateA || totalB - totalA || lastVoteB - lastVoteA || b.createdAt - a.createdAt;
+            }
+            if (sortBy === 'created') {
+              return b.createdAt - a.createdAt || lastVoteB - lastVoteA || totalB - totalA;
+            }
+            // recent
+            return lastVoteB - lastVoteA || totalB - totalA || agreeRateB - agreeRateA || b.createdAt - a.createdAt;
+          });
+        })();
+
+        return (
+          <>
+            {/* Scrollable Content Area - app-specific */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
+              <div className="container mx-auto p-10 pt-8 pb-24 max-w-6xl w-full">
+                <div className="mb-6">
+                  <div className="flex flex-wrap items-center gap-3 justify-between">
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {/* Web of Trust Filter */}
+                      <button
+                        className={`badge gap-1 p-4 cursor-pointer transition-all ${
+                          webOfTrustFilter
+                            ? 'badge-success'
+                            : 'badge-ghost border-base-300 hover:border-success'
+                        }`}
+                        onClick={() => setWebOfTrustFilter(!webOfTrustFilter)}
+                        title={webOfTrustFilter ? 'Nur Web of Trust' : 'Alle Assumptions'}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                          />
+                        </svg>
+                        <span>{webOfTrustFilter ? 'Web of Trust' : 'Alle'}</span>
+                      </button>
+
+                      {/* Tag Filter */}
+                      {activeTagFilter && narrative && (
+                        <div className="badge badge-primary gap-1 p-4 pr-1">
+                          <span>{narrative.tags.find((t) => t.id === activeTagFilter)?.name ?? 'Tag'}</span>
+                          <button
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => setActiveTagFilter(null)}
+                            aria-label="Filter entfernen"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <label className="form-control w-full md:w-64">
+                        <div className="label py-0">
+                          <span className="label-text">Sortieren nach</span>
+                        </div>
+                        <select
+                          className="select select-bordered select-sm"
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                        >
+                          <option value="recent">Neuster Vote</option>
+                          <option value="votes">Anzahl Votes</option>
+                          <option value="agree">Zustimmung</option>
+                          <option value="created">Neueste Annahme</option>
+                        </select>
+                      </label>
+                    </div>
                   </div>
+                </div>
+
+                {narrative && (
+                  <AssumptionList
+                    assumptions={sortedAssumptions}
+                    getVoteSummary={getFilteredVoteSummary}
+                    getVotesForAssumption={getFilteredVotesForAssumption}
+                    getEditsForAssumption={getFilteredEditsForAssumption}
+                    onVote={narrative.setVote}
+                    onEdit={narrative.updateAssumption}
+                    tags={narrative.tags}
+                    onTagClick={(tagId) => setActiveTagFilter((prev) => (prev === tagId ? null : tagId))}
+                    currentUserId={narrative.currentUserDid}
+                    doc={narrative.doc}
+                  />
                 )}
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <label className="form-control w-full md:w-64">
-                  <div className="label py-0">
-                    <span className="label-text">Sortieren nach</span>
-                  </div>
-                  <select
-                    className="select select-bordered select-sm"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                  >
-                    <option value="recent">Neuster Vote</option>
-                    <option value="votes">Anzahl Votes</option>
-                    <option value="agree">Zustimmung</option>
-                    <option value="created">Neueste Annahme</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-          </div>
 
-          <AssumptionList
-            assumptions={sortedAssumptions}
-            getVoteSummary={getFilteredVoteSummary}
-            getVotesForAssumption={getFilteredVotesForAssumption}
-            getEditsForAssumption={getFilteredEditsForAssumption}
-            onVote={narrative.setVote}
-            onEdit={narrative.updateAssumption}
-            tags={narrative.tags}
-            onTagClick={(tagId) => setActiveTagFilter((prev) => (prev === tagId ? null : tagId))}
-            currentUserId={narrative.currentUserDid}
-            doc={narrative.doc}
-          />
-        </div>
-
-        {/* Floating New Assumption Button */}
-        <button
-          className="btn btn-primary gap-2 fixed bottom-6 right-6 shadow-lg shadow-black/30"
-          onClick={() => setIsCreateModalOpen(true)}
-          title="New Assumption"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          <span>New Assumption</span>
-        </button>
-      </div>
-
-      {/* Board Menu FAB */}
-      <div className="fixed bottom-6 left-6 z-30">
-        <div className="dropdown dropdown-top">
-          <div tabIndex={0} role="button" className="btn btn-neutral shadow-lg shadow-black/30">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-            </svg>
-            Doc
-          </div>
-          <ul tabIndex={0} className="menu menu-sm dropdown-content bg-neutral text-white rounded-box z-[1] mb-3 w-36 p-2 shadow-xl">
-            <li>
-              <a onClick={onNewDocument}>
+              {/* Floating New Assumption Button */}
+              <button
+                className="btn btn-primary gap-2 fixed bottom-6 right-6 shadow-lg shadow-black/30"
+                onClick={() => setIsCreateModalOpen(true)}
+                title="New Assumption"
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5"
@@ -530,124 +276,44 @@ export function MainView({ documentId, currentUserDid, privateKey, publicKey, di
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M12 6v12m6-6H6"
+                    d="M12 4v16m8-8H4"
                   />
                 </svg>
-                New Board
-              </a>
-            </li>
-            <li>
-              <a onClick={handleShareClick}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                  />
-                </svg>
-                Share
-              </a>
-            </li>
-            <li>
-              <a onClick={() => setShowImportModal(true)}>
+                <span>New Assumption</span>
+              </button>
+
+              {/* Import Button */}
+              <button
+                className="btn btn-neutral gap-2 fixed bottom-6 left-6 shadow-lg shadow-black/30"
+                onClick={() => setShowImportModal(true)}
+                title="Import"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
                   <path d="M9.25 13.25a.75.75 0 0 0 1.5 0V4.636l2.955 3.129a.75.75 0 0 0 1.09-1.03l-4.25-4.5a.75.75 0 0 0-1.09 0l-4.25 4.5a.75.75 0 1 0 1.09 1.03L9.25 4.636v8.614Z" />
                   <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
                 </svg>
-
                 Import
-              </a>
-            </li>
-          </ul>
-        </div>
-      </div>
+              </button>
+            </div>
 
-      {/* Identity Modal */}
-      <ProfileModal
-        isOpen={showIdentityModal}
-        onClose={() => setShowIdentityModal(false)}
-        currentUserDid={currentUserDid}
-        doc={narrative.doc}
-        onUpdateIdentity={narrative.updateIdentity}
-        onExportIdentity={handleExportIdentity}
-        onImportIdentity={handleImportIdentity}
-        onResetId={onResetIdentity}
-        initialDisplayName={displayName}
-      />
+            {/* App-specific Modals */}
+            <ImportModal
+              isOpen={showImportModal}
+              onClose={() => setShowImportModal(false)}
+              onImport={handleImportAssumptions}
+            />
 
-      {/* Import Modal */}
-      <ImportModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImport={handleImportAssumptions}
-      />
-
-      {/* Friends Modal */}
-      <CollaboratorsModal
-        isOpen={showFriendsModal}
-        onClose={() => setShowFriendsModal(false)}
-        doc={narrative.doc}
-        currentUserDid={currentUserDid}
-        hiddenUserDids={hiddenUserDids}
-        onToggleUserVisibility={toggleUserVisibility}
-        onTrustUser={handleTrustUser}
-      />
-
-      {/* Create Assumption Modal */}
-      <CreateAssumptionModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={narrative.createAssumption}
-        availableTags={narrative.tags}
-      />
-
-      {/* Trust Reciprocity Modal */}
-      {narrative?.doc && (
-        <TrustReciprocityModal
-          pendingAttestations={pendingAttestations}
-          doc={narrative.doc}
-          currentUserDid={currentUserDid}
-          onTrustBack={handleTrustBack}
-          onDecline={handleDeclineTrust}
-          onShowToast={showToast}
-        />
-      )}
-
-      {/* Verify Scanner Modal */}
-      {narrative?.doc && (
-        <QRScannerModal
-          isOpen={showVerifyScanner}
-          onClose={() => setShowVerifyScanner(false)}
-          currentUserDid={currentUserDid}
-          doc={narrative.doc}
-          onTrustUser={handleTrustUser}
-        />
-      )}
-
-      {/* Toast for copied URL */}
-      {showCopiedToast && (
-        <div className="toast toast-end">
-          <div className="alert alert-success">
-            <span>✓ Link copied to clipboard!</span>
-          </div>
-        </div>
-      )}
-
-      {/* Toast for trust notifications */}
-      {toastMessage && (
-        <Toast
-          message={toastMessage}
-          type="success"
-          onClose={() => setToastMessage(null)}
-        />
-      )}
-    </div>
+            {narrative && (
+              <CreateAssumptionModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSubmit={narrative.createAssumption}
+                availableTags={narrative.tags}
+              />
+            )}
+          </>
+        );
+      }}
+    </AppLayout>
   );
 }
