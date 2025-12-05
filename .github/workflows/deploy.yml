@@ -53,7 +53,7 @@ jobs:
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Narrative Apps</title>
+            <title>Web of Trust Apps</title>
             <style>
               body {
                 font-family: system-ui, -apple-system, sans-serif;
@@ -85,7 +85,7 @@ jobs:
             </style>
           </head>
           <body>
-            <h1>Narrative Apps</h1>
+            <h1>Web of Trust Apps</h1>
             <p>Choose an app to get started:</p>
             <div class="apps">
               <a href="./unified/">Unified App (All-in-One)</a>
