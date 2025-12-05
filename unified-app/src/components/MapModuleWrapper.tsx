@@ -164,7 +164,10 @@ export function MapModuleWrapper({
         locations={locations}
         hiddenUserDids={hiddenUserDids}
         doc={{
+          version: doc.version,
+          lastModified: doc.lastModified,
           identities: doc.identities,
+          data: mapData,
         }}
       />
     </div>
