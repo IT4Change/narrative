@@ -103,8 +103,8 @@ export function UnifiedApp({
         <>
           {/* Module Content */}
           {activeModule === 'map' ? (
-            // Map module: fullscreen flex layout
-            <div className="flex-1 relative overflow-hidden">
+            // Map module: fullscreen flex layout with min-h-0 for proper flex shrinking
+            <div className="flex-1 min-h-0 relative overflow-hidden">
               {doc && docHandle && (
                 <MapModuleWrapper
                   doc={doc}
@@ -116,7 +116,7 @@ export function UnifiedApp({
             </div>
           ) : (
             // Other modules: scrollable container with padding
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
               <div className="container mx-auto p-10 pt-8 pb-24 max-w-6xl w-full">
                 {activeModule === 'narrative' && doc?.data.narrative && docHandle && (
                   <NarrativeModuleWrapper

@@ -96,6 +96,12 @@ export interface AppNavbarProps<TData = unknown> {
    * Used as primary source for avatar/name of verified friends
    */
   trustedUserProfiles?: Record<string, TrustedUserProfile>;
+
+  /** Callback to open a user's profile */
+  onOpenProfile?: (did: string) => void;
+
+  /** Callback when mutual trust is established */
+  onMutualTrustEstablished?: (friendDid: string, friendName: string) => void;
 }
 
 export function AppNavbar<TData = unknown>({
@@ -117,6 +123,8 @@ export function AppNavbar<TData = unknown>({
   userDoc,
   userDocUrl,
   trustedUserProfiles,
+  onOpenProfile,
+  onMutualTrustEstablished,
 }: AppNavbarProps<TData>) {
   // Modal states
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
@@ -366,6 +374,9 @@ export function AppNavbar<TData = unknown>({
         currentUserDid={currentUserDid}
         onTrustUser={onTrustUser}
         userDocUrl={userDocUrl}
+        userDoc={userDoc}
+        onOpenProfile={onOpenProfile}
+        onMutualTrustEstablished={onMutualTrustEstablished}
       />
     </>
   );

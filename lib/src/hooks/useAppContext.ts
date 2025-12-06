@@ -228,6 +228,8 @@ export interface AppContextValue<TData = unknown> {
   hiddenUserDids: Set<string>;
   toastMessage: string | null;
   isNewWorkspaceModalOpen: boolean;
+  showConfetti: boolean;
+  clearConfetti: () => void;
 
   // Trust notifications
   pendingAttestations: TrustAttestation[];
@@ -249,6 +251,7 @@ export interface AppContextValue<TData = unknown> {
   handleTrustBack: (trusterDid: string) => void;
   handleDeclineTrust: (attestationId: string) => void;
   handleResetIdentity: () => void;
+  handleMutualTrustEstablished: (friendDid: string, friendName: string) => void;
   toggleUserVisibility: (did: string) => void;
   showToast: (message: string) => void;
   clearToast: () => void;
@@ -277,6 +280,8 @@ export interface AppContextValue<TData = unknown> {
     userDoc?: UserDocument | null;
     userDocUrl?: string;
     trustedUserProfiles?: Record<string, TrustedUserProfile>;
+    onOpenProfile: (did: string) => void;
+    onMutualTrustEstablished: (friendDid: string, friendName: string) => void;
   } | null;
 
   newWorkspaceModalProps: {
@@ -292,6 +297,11 @@ export interface AppContextValue<TData = unknown> {
     onTrustUser: (trusteeDid: string, trusteeUserDocUrl?: string) => void;
     onDecline: (attestationId: string) => void;
     onShowToast: (message: string) => void;
+    userDoc?: UserDocument | null;
+    userDocUrl?: string;
+    onOpenProfile: (did: string) => void;
+    onMutualTrustEstablished: (friendDid: string, friendName: string) => void;
+    trustedUserProfiles?: Record<string, TrustedUserProfile>;
   } | null;
 
   toastProps: {
@@ -332,6 +342,7 @@ export function useAppContext<TData = unknown>(
   const [hiddenUserDids, setHiddenUserDids] = useState<Set<string>>(new Set());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isNewWorkspaceModalOpen, setIsNewWorkspaceModalOpen] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Trust notifications state
   const [pendingAttestations, setPendingAttestations] = useState<TrustAttestation[]>([]);
@@ -1084,6 +1095,21 @@ export function useAppContext<TData = unknown>(
     [onCreateWorkspace, closeNewWorkspaceModal]
   );
 
+  // Handler for mutual trust established (both users trust each other)
+  const handleMutualTrustEstablished = useCallback(
+    (friendDid: string, friendName: string) => {
+      console.log('[useAppContext] Mutual trust established!', { friendDid, friendName });
+      showToast(`${friendName} und du seid jetzt Freunde!`);
+      setShowConfetti(true);
+    },
+    [showToast]
+  );
+
+  // Clear confetti after animation
+  const clearConfetti = useCallback(() => {
+    setShowConfetti(false);
+  }, []);
+
   // Props ready for NewWorkspaceModal
   const newWorkspaceModalProps = {
     isOpen: isNewWorkspaceModalOpen,
@@ -1100,6 +1126,11 @@ export function useAppContext<TData = unknown>(
         onTrustUser: handleTrustUser, // Now uses QR scanning for proper verification
         onDecline: handleDeclineTrust,
         onShowToast: showToast,
+        userDoc,
+        userDocUrl,
+        onOpenProfile: openProfile,
+        onMutualTrustEstablished: handleMutualTrustEstablished,
+        trustedUserProfiles,
       }
     : null;
 
@@ -1131,6 +1162,8 @@ export function useAppContext<TData = unknown>(
         userDoc,
         userDocUrl,
         trustedUserProfiles,
+        onOpenProfile: openProfile,
+        onMutualTrustEstablished: handleMutualTrustEstablished,
       }
     : null;
 
@@ -1142,6 +1175,8 @@ export function useAppContext<TData = unknown>(
     hiddenUserDids,
     toastMessage,
     isNewWorkspaceModalOpen,
+    showConfetti,
+    clearConfetti,
     pendingAttestations,
     hasPendingTrust: pendingAttestations.length > 0,
     trustedUserProfiles,
@@ -1153,6 +1188,7 @@ export function useAppContext<TData = unknown>(
     handleTrustBack,
     handleDeclineTrust,
     handleResetIdentity,
+    handleMutualTrustEstablished,
     toggleUserVisibility,
     showToast,
     clearToast,

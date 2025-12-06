@@ -20,6 +20,12 @@ interface QRScannerModalProps<TData = unknown> {
   onTrustUser: (did: string, userDocUrl?: string) => void;
   /** Current user's UserDocument URL (for showing own QR code after confirming) */
   userDocUrl?: string;
+  /** Current user's UserDocument (reactive, for detecting mutual trust) */
+  userDoc?: UserDocument | null;
+  /** Callback to open a user's profile */
+  onOpenProfile?: (did: string) => void;
+  /** Callback when mutual trust is established (both users trust each other) */
+  onMutualTrustEstablished?: (friendDid: string, friendName: string) => void;
 }
 
 export function QRScannerModal<TData = unknown>({
@@ -29,6 +35,9 @@ export function QRScannerModal<TData = unknown>({
   doc,
   onTrustUser,
   userDocUrl,
+  userDoc,
+  onOpenProfile,
+  onMutualTrustEstablished,
 }: QRScannerModalProps<TData>) {
   const repo = useRepo();
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -40,6 +49,7 @@ export function QRScannerModal<TData = unknown>({
   const [loadedProfile, setLoadedProfile] = useState<{ displayName?: string; avatarUrl?: string } | null>(null);
   const [showOwnQR, setShowOwnQR] = useState(false);
   const [confirmedUserName, setConfirmedUserName] = useState<string>('');
+  const [confirmedDid, setConfirmedDid] = useState<string | null>(null);
 
   // Load UserDocument and verify signature when scanned (reactive)
   useEffect(() => {
@@ -197,6 +207,20 @@ export function QRScannerModal<TData = unknown>({
     };
   }, [isOpen]);
 
+  // Auto-detect mutual trust: when showing own QR, watch for trustReceived from the confirmed user
+  useEffect(() => {
+    if (!showOwnQR || !confirmedDid || !userDoc) return;
+
+    // Check if the confirmed user now appears in our trustReceived
+    if (userDoc.trustReceived?.[confirmedDid]) {
+      console.log('[QRScannerModal] Mutual trust detected! Friend:', confirmedDid);
+      // Mutual trust established - trigger callbacks and close
+      onMutualTrustEstablished?.(confirmedDid, confirmedUserName);
+      onOpenProfile?.(confirmedDid);
+      handleClose();
+    }
+  }, [showOwnQR, confirmedDid, userDoc, userDoc?.trustReceived, confirmedUserName, onMutualTrustEstablished, onOpenProfile]);
+
   const handleClose = () => {
     // Stop and clear scanner if it exists
     if (scannerRef.current) {
@@ -220,6 +244,7 @@ export function QRScannerModal<TData = unknown>({
     setLoadedProfile(null);
     setShowOwnQR(false);
     setConfirmedUserName('');
+    setConfirmedDid(null);
     onClose();
   };
 
@@ -240,6 +265,7 @@ export function QRScannerModal<TData = unknown>({
 
       // Show own QR code for reciprocal trust (if userDocUrl is available)
       if (userDocUrl) {
+        setConfirmedDid(scannedDid);
         setConfirmedUserName(userName);
         setShowOwnQR(true);
         // Clear scanned data but keep modal open
@@ -274,7 +300,7 @@ export function QRScannerModal<TData = unknown>({
             ✕
           </button>
 
-          <h3 className="font-bold text-xl mb-4 text-center">Zeige jetzt deinen Code</h3>
+          <h3 className="font-bold text-xl mb-4 text-center">Zeige jetzt {confirmedUserName} deinen Code</h3>
 
           <div className="flex flex-col items-center mb-4">
             <div className="bg-white p-3 rounded-xl shadow-sm">

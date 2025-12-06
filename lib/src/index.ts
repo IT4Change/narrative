@@ -87,6 +87,7 @@ export { ClickableUserName } from './components/ClickableUserName';
 export { Toast } from './components/Toast';
 export { NewWorkspaceModal, type NewWorkspaceModalProps } from './components/NewWorkspaceModal';
 export { AppLayout, type AppLayoutProps } from './components/AppLayout';
+export { Confetti } from './components/Confetti';
 
 // DID utilities exports
 export {

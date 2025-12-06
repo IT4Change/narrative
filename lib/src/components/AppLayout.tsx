@@ -22,6 +22,7 @@ import { NewWorkspaceModal } from './NewWorkspaceModal';
 import { UserProfileModal, type ProfileAction } from './UserProfileModal';
 import { QRScannerModal } from './QRScannerModal';
 import { Toast } from './Toast';
+import { Confetti } from './Confetti';
 import { exportIdentityToFile, importIdentityFromFile } from '../utils/storage';
 
 export interface AppLayoutProps<TDoc extends BaseDocument<unknown>> {
@@ -220,7 +221,7 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
   }
 
   return (
-    <div className="w-screen h-screen bg-base-200 flex flex-col overflow-hidden">
+    <div className="w-screen h-dvh bg-base-200 flex flex-col overflow-hidden">
       {/* Navbar */}
       {ctx.navbarProps && (
         <AppNavbar {...ctx.navbarProps}>
@@ -276,8 +277,17 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
           doc={doc}
           onTrustUser={ctx.handleTrustUser}
           userDocUrl={userDocUrl}
+          userDoc={userDoc}
+          onOpenProfile={ctx.openProfile}
+          onMutualTrustEstablished={ctx.handleMutualTrustEstablished}
         />
       )}
+
+      {/* Confetti animation for mutual trust celebration */}
+      <Confetti
+        isActive={ctx.showConfetti}
+        onComplete={ctx.clearConfetti}
+      />
     </div>
   );
 }

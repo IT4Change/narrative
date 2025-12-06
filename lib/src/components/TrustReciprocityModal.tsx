@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { BaseDocument } from '../schema/document';
 import type { TrustAttestation } from '../schema/identity';
 import type { TrustedUserProfile } from '../hooks/useAppContext';
+import type { UserDocument } from '../schema/userDocument';
 import { UserAvatar } from './UserAvatar';
 import { QRScannerModal } from './QRScannerModal';
 import { getDefaultDisplayName, extractPublicKeyFromDid, base64Encode } from '../utils/did';
@@ -37,6 +38,12 @@ interface TrustReciprocityModalProps<TData = unknown> {
   trustedUserProfiles?: Record<string, TrustedUserProfile>;
   /** User document URL for QR code generation */
   userDocUrl?: string;
+  /** Current user's UserDocument (reactive, for passing to QRScannerModal) */
+  userDoc?: UserDocument | null;
+  /** Callback to open a user's profile */
+  onOpenProfile?: (did: string) => void;
+  /** Callback when mutual trust is established */
+  onMutualTrustEstablished?: (friendDid: string, friendName: string) => void;
 }
 
 export function TrustReciprocityModal<TData = unknown>({
@@ -48,6 +55,9 @@ export function TrustReciprocityModal<TData = unknown>({
   onShowToast,
   trustedUserProfiles = {},
   userDocUrl,
+  userDoc,
+  onOpenProfile,
+  onMutualTrustEstablished,
 }: TrustReciprocityModalProps<TData>) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
@@ -118,16 +128,18 @@ export function TrustReciprocityModal<TData = unknown>({
     setShowScanner(false);
   };
 
-  const handleTrustFromScanner = (scannedDid: string, userDocUrl?: string) => {
-    onTrustUser(scannedDid, userDocUrl);
+  const handleTrustFromScanner = (scannedDid: string, scannedUserDocUrl?: string) => {
+    onTrustUser(scannedDid, scannedUserDocUrl);
     setShowScanner(false);
 
     // Mark the current attestation as handled if the scanned DID matches
     if (scannedDid === trusterDid) {
       onDecline(currentAttestation.id); // Mark as seen
-      if (onShowToast) {
-        onShowToast(`Du vertraust jetzt ${displayName}`);
-      }
+
+      // This is mutual trust! The truster trusted us, and we just trusted them back
+      const friendName = trustedUserProfiles[scannedDid]?.displayName || displayName;
+      onMutualTrustEstablished?.(scannedDid, friendName);
+      onOpenProfile?.(scannedDid);
     }
 
     // Move to next attestation
@@ -261,6 +273,9 @@ export function TrustReciprocityModal<TData = unknown>({
         doc={doc}
         onTrustUser={handleTrustFromScanner}
         userDocUrl={userDocUrl}
+        userDoc={userDoc}
+        onOpenProfile={onOpenProfile}
+        onMutualTrustEstablished={onMutualTrustEstablished}
       />
     </div>
   );
