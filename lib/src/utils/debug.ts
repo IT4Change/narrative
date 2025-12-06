@@ -12,12 +12,16 @@
  * Load any document by ID:
  * - __narrative.loadDoc('automerge:xyz...')
  * - __narrative.loadUserDoc('did:key:z6Mk...')
+ *
+ * Sync Monitoring:
+ * - __narrative.syncStatus() - Show current sync status
+ * - __narrative.watchSync(docUrl) - Watch a document's sync in real-time
  */
 
 import type { UserDocument } from '../schema/userDocument';
 import type { BaseDocument } from '../schema/document';
 import { loadSharedIdentity, type StoredIdentity } from './storage';
-import type { Repo, AutomergeUrl } from '@automerge/automerge-repo';
+import type { Repo, AutomergeUrl, DocHandle } from '@automerge/automerge-repo';
 import type { TrustedUserProfile } from '../hooks/useAppContext';
 
 // Internal repo reference for loading arbitrary documents
@@ -25,6 +29,9 @@ let _repo: Repo | null = null;
 
 // Internal trusted user profiles reference
 let _trustedUserProfiles: Record<string, TrustedUserProfile> = {};
+
+// Active sync watchers for cleanup
+const _activeWatchers: SyncWatcher[] = [];
 
 // Type declarations for window object
 declare global {
@@ -36,6 +43,25 @@ declare global {
     __docUrl: string | null;
     __identity: StoredIdentity | null;
   }
+}
+
+/**
+ * Sync status for a document
+ */
+export interface DocSyncStatus {
+  url: string;
+  isLoaded: boolean;
+  hasLocalChanges: boolean;
+  lastSyncAt: number | null;
+  peerCount: number;
+}
+
+/**
+ * Active sync watcher
+ */
+interface SyncWatcher {
+  handle: DocHandle<unknown>;
+  stopWatching: () => void;
 }
 
 export interface NarrativeDebug {
@@ -60,6 +86,12 @@ export interface NarrativeDebug {
   // Load arbitrary documents
   loadDoc: (docId: string) => Promise<unknown>;
   loadUserDoc: (did: string) => Promise<UserDocument | null>;
+
+  // Sync Monitoring
+  syncStatus: () => Promise<void>;
+  watchSync: (docUrl: string) => Promise<SyncWatcher | null>;
+  stopAllWatchers: () => void;
+  testSync: (docUrl: string) => Promise<boolean>;
 
   // Export
   exportUserDoc: () => void;
@@ -418,6 +450,152 @@ export function initDebugTools(): void {
     // Load arbitrary documents
     loadDoc: loadDocById,
     loadUserDoc: loadUserDocByDid,
+
+    // Sync Monitoring
+    syncStatus: async () => {
+      if (!_repo) {
+        console.error('❌ Repo not initialized.');
+        return;
+      }
+
+      console.group('📡 Sync Status');
+
+      // Check userDoc
+      if (window.__userDocUrl) {
+        console.group('👤 User Document');
+        console.log('URL:', window.__userDocUrl);
+        try {
+          const handle = await _repo.find<UserDocument>(window.__userDocUrl as AutomergeUrl);
+          const doc = handle.doc();
+          console.log('Loaded:', !!doc);
+          console.log('Last Modified:', doc ? new Date(doc.lastModified).toLocaleString() : 'N/A');
+          console.log('Trust Given:', Object.keys(doc?.trustGiven || {}).length);
+          console.log('Trust Received:', Object.keys(doc?.trustReceived || {}).length);
+        } catch (err) {
+          console.error('Failed to check:', err);
+        }
+        console.groupEnd();
+      }
+
+      // Check workspace doc
+      if (window.__docUrl) {
+        console.group('📄 Workspace Document');
+        console.log('URL:', window.__docUrl);
+        try {
+          const handle = await _repo.find<BaseDocument<unknown>>(window.__docUrl as AutomergeUrl);
+          const doc = handle.doc();
+          console.log('Loaded:', !!doc);
+          console.log('Last Modified:', doc ? new Date(doc.lastModified).toLocaleString() : 'N/A');
+          console.log('Identities:', Object.keys(doc?.identities || {}).length);
+        } catch (err) {
+          console.error('Failed to check:', err);
+        }
+        console.groupEnd();
+      }
+
+      // Network status
+      console.group('🌐 Network');
+      const networkSubsystem = _repo.networkSubsystem;
+      if (networkSubsystem) {
+        console.log('Network adapters available');
+      } else {
+        console.log('No network subsystem');
+      }
+      console.groupEnd();
+
+      console.groupEnd();
+    },
+
+    watchSync: async (docUrl: string) => {
+      if (!_repo) {
+        console.error('❌ Repo not initialized.');
+        return null;
+      }
+
+      const normalizedUrl = docUrl.startsWith('automerge:') ? docUrl : `automerge:${docUrl}`;
+      console.log(`👁️ Starting sync watcher for: ${normalizedUrl.substring(0, 50)}...`);
+
+      try {
+        const handle = await _repo.find(normalizedUrl as AutomergeUrl);
+
+        const changeHandler = ({ doc }: { doc: unknown }) => {
+          const timestamp = new Date().toLocaleTimeString();
+          console.log(`📥 [${timestamp}] Document changed:`, normalizedUrl.substring(0, 40));
+          if (doc && typeof doc === 'object' && 'lastModified' in doc) {
+            console.log(`   Last Modified: ${new Date((doc as { lastModified: number }).lastModified).toLocaleString()}`);
+          }
+        };
+
+        handle.on('change', changeHandler);
+
+        const watcher: SyncWatcher = {
+          handle,
+          stopWatching: () => {
+            handle.off('change', changeHandler);
+            console.log(`🛑 Stopped watching: ${normalizedUrl.substring(0, 40)}`);
+          }
+        };
+
+        _activeWatchers.push(watcher);
+        console.log(`✅ Watching for changes. Call __narrative.stopAllWatchers() to stop.`);
+        return watcher;
+      } catch (err) {
+        console.error('❌ Failed to watch document:', err);
+        return null;
+      }
+    },
+
+    stopAllWatchers: () => {
+      console.log(`🛑 Stopping ${_activeWatchers.length} watchers...`);
+      for (const watcher of _activeWatchers) {
+        watcher.stopWatching();
+      }
+      _activeWatchers.length = 0;
+      console.log('✅ All watchers stopped.');
+    },
+
+    testSync: async (docUrl: string) => {
+      if (!_repo) {
+        console.error('❌ Repo not initialized.');
+        return false;
+      }
+
+      const normalizedUrl = docUrl.startsWith('automerge:') ? docUrl : `automerge:${docUrl}`;
+      console.log(`🧪 Testing sync for: ${normalizedUrl.substring(0, 50)}...`);
+
+      const startTime = Date.now();
+
+      try {
+        const handle = await _repo.find(normalizedUrl as AutomergeUrl);
+        const findTime = Date.now() - startTime;
+
+        const doc = handle.doc();
+        const docTime = Date.now() - startTime;
+
+        console.group('📊 Sync Test Results');
+        console.log(`Find time: ${findTime}ms`);
+        console.log(`Doc ready: ${docTime}ms`);
+        console.log(`Document loaded: ${!!doc}`);
+
+        if (doc && typeof doc === 'object') {
+          if ('lastModified' in doc) {
+            console.log(`Last Modified: ${new Date((doc as { lastModified: number }).lastModified).toLocaleString()}`);
+          }
+          if ('trustReceived' in doc) {
+            console.log(`Trust Received: ${Object.keys((doc as { trustReceived: Record<string, unknown> }).trustReceived || {}).length}`);
+          }
+          if ('trustGiven' in doc) {
+            console.log(`Trust Given: ${Object.keys((doc as { trustGiven: Record<string, unknown> }).trustGiven || {}).length}`);
+          }
+        }
+        console.groupEnd();
+
+        return !!doc;
+      } catch (err) {
+        console.error('❌ Sync test failed:', err);
+        return false;
+      }
+    },
 
     // Help
     help: printHelp,

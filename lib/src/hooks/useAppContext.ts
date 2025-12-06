@@ -915,24 +915,52 @@ export function useAppContext<TData = unknown>(
       // 2. If we have the trustee's userDocUrl and repo, add to their trustReceived
       if (trusteeUserDocUrl && repo) {
         console.log('🤝 Writing to trustee userDoc:', trusteeUserDocUrl);
-        // In automerge-repo v2.x, find() returns a Promise
-        repo.find<UserDocument>(trusteeUserDocUrl as AutomergeUrl).then((trusteeDocHandle) => {
-          console.log('🤝 Found trustee doc handle');
-          const currentDoc = trusteeDocHandle.doc();
-          console.log('🤝 Trustee doc ready', {
-            hasTrustReceived: !!currentDoc?.trustReceived,
-            trusteeDid: currentDoc?.did,
-            currentTrustReceivedCount: Object.keys(currentDoc?.trustReceived || {}).length
-          });
-          trusteeDocHandle.change((d: UserDocument) => {
-            console.log('🤝 Inside trustee change callback', { trusteeDid: d.did });
-            addTrustReceived(d, attestation);
-            console.log('🤝 After addTrustReceived', { trustReceived: Object.keys(d.trustReceived || {}).length });
-          });
-          console.log('🤝 Change applied to trustee doc');
-        }).catch((err: unknown) => {
-          console.warn('🤝 Failed to find/update trustee userDoc:', err);
-        });
+
+        // Retry logic for writing to remote UserDoc
+        const writeToTrusteeDoc = async (retries = 3, delayMs = 1000) => {
+          for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+              console.log(`🤝 Attempt ${attempt}/${retries} to write to trustee doc`);
+              const trusteeDocHandle = await repo.find<UserDocument>(trusteeUserDocUrl as AutomergeUrl);
+
+              // Wait for document to be ready (check if doc exists)
+              const currentDoc = trusteeDocHandle.doc();
+              if (!currentDoc) {
+                console.warn(`🤝 Attempt ${attempt}: Trustee doc not ready yet, waiting...`);
+                if (attempt < retries) {
+                  await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+                  continue;
+                }
+                throw new Error('Trustee document not available after retries');
+              }
+
+              console.log('🤝 Trustee doc ready', {
+                hasTrustReceived: !!currentDoc.trustReceived,
+                trusteeDid: currentDoc.did,
+                currentTrustReceivedCount: Object.keys(currentDoc.trustReceived || {}).length
+              });
+
+              trusteeDocHandle.change((d: UserDocument) => {
+                console.log('🤝 Inside trustee change callback', { trusteeDid: d.did });
+                addTrustReceived(d, attestation);
+                console.log('🤝 After addTrustReceived', { trustReceived: Object.keys(d.trustReceived || {}).length });
+              });
+
+              console.log('🤝 Change applied to trustee doc successfully');
+              return; // Success, exit retry loop
+            } catch (err) {
+              console.warn(`🤝 Attempt ${attempt} failed:`, err);
+              if (attempt < retries) {
+                await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+              } else {
+                console.error('🤝 All attempts to write to trustee doc failed');
+              }
+            }
+          }
+        };
+
+        // Fire and forget with retries
+        writeToTrusteeDoc();
       } else {
         console.log('🤝 No trusteeUserDocUrl or repo provided, skipping trustReceived update', {
           hasTrusteeUserDocUrl: !!trusteeUserDocUrl,
