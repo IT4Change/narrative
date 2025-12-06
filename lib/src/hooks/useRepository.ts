@@ -22,11 +22,10 @@ export interface RepositoryOptions {
 
   /**
    * Enable BroadcastChannel for same-browser multi-tab sync
-   * Default: false (disabled due to cross-browser sync issues)
+   * Default: false (but recommended to set to true for instant cross-tab sync)
    *
-   * Note: BroadcastChannel was found to interfere with cross-browser
-   * document loading via WebSocket. Only enable if same-browser
-   * multi-tab sync is critical for your use case.
+   * This provides instant synchronization between tabs in the same browser,
+   * without waiting for the WebSocket roundtrip to sync.automerge.org.
    */
   enableBroadcastChannel?: boolean;
 }
@@ -58,8 +57,8 @@ export function useRepository(options: RepositoryOptions = {}): Repo {
       networkAdapters.push(new BrowserWebSocketClientAdapter(syncServer));
     }
 
-    // BroadcastChannel adapter for same-browser multi-tab sync (optional)
-    // Note: Disabled by default due to cross-browser sync issues
+    // BroadcastChannel adapter for same-browser multi-tab sync
+    // Provides instant sync between tabs without WebSocket roundtrip
     if (enableBroadcastChannel) {
       // Lazy import to avoid bundling if not used
       import('@automerge/automerge-repo-network-broadcastchannel').then(

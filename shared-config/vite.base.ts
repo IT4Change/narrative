@@ -40,7 +40,8 @@ export function createViteConfig(options: AppViteConfigOptions = {}) {
       open: true,
     },
     optimizeDeps: {
-      exclude: ['@automerge/automerge', '@automerge/automerge/next'],
+      // Allow Vite to prebundle Automerge for proper WASM initialization order
+      // The vite-plugin-wasm handles WASM loading
     },
     ...extend,
   });

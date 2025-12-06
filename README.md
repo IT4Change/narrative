@@ -170,15 +170,70 @@ npm run build:lib
 
 ### Debugging
 
-Im Browser verfügbar unter `window.__narrative`:
+Die Debug Tools sind in **allen Environments** (dev + production) verfügbar und bieten Zugriff auf den internen State der App.
+
+#### Quick Access (auto-aktualisiert)
 
 ```javascript
-__narrative.help()           // Hilfe
-__narrative.userDoc()        // UserDocument
-__narrative.trustGiven()     // Ausgehende Trust
-__narrative.trustReceived()  // Eingehende Trust
-__narrative.exportUserDoc()  // Als JSON exportieren
+__userDoc     // Aktuelles UserDocument
+__doc         // Aktuelles Workspace-Dokument
+__identity    // Aktuelle Identität
 ```
+
+#### Alle Befehle
+
+```javascript
+// Hilfe
+__narrative.help()
+
+// Identity
+__narrative.identity()        // Identität anzeigen
+__narrative.exportIdentity()  // Als JSON exportieren
+
+// User Document
+__narrative.userDoc()         // UserDocument anzeigen
+__narrative.printUserDoc()    // Formatiert ausgeben
+__narrative.trustGiven()      // Ausgehende Trust-Attestationen
+__narrative.trustReceived()   // Eingehende Trust-Attestationen
+__narrative.workspaces()      // Alle Workspaces
+__narrative.exportUserDoc()   // Als JSON exportieren
+
+// Workspace Document
+__narrative.doc()             // Workspace-Dokument anzeigen
+__narrative.printDoc()        // Formatiert ausgeben
+__narrative.exportDoc()       // Als JSON exportieren
+
+// Beliebige Dokumente laden
+await __narrative.loadDoc('automerge:xyz...')    // Dokument nach ID laden
+await __narrative.loadUserDoc('did:key:z6Mk...') // UserDoc eines Users laden
+```
+
+#### App-spezifische Extensions
+
+Einzelne Apps erweitern die Debug Tools mit app-spezifischen Befehlen:
+
+**narrative-app:**
+
+```javascript
+__narrative.assumptions()     // Alle Assumptions
+__narrative.votes()           // Alle Votes
+__narrative.trace('id')       // Assumption + Votes + Edits
+```
+
+**market-app:**
+
+```javascript
+__narrative.listings()        // Alle Listings
+__narrative.offers()          // Nur Angebote
+__narrative.needs()           // Nur Gesuche
+__narrative.reactions()       // Alle Reaktionen
+```
+
+#### Tipps
+
+- `__userDoc` und `__doc` aktualisieren sich automatisch bei Änderungen
+- `loadUserDoc()` funktioniert nur für User, die dir vertrauen (URL ist in trustReceived)
+- Für Raw-JSON: `JSON.stringify(__userDoc, null, 2)`
 
 ## Deployment
 

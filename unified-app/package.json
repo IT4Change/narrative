@@ -10,11 +10,11 @@
     "lint": "eslint . --ext ts,tsx"
   },
   "dependencies": {
-    "@automerge/automerge": "^2.2.8",
-    "@automerge/automerge-repo": "^1.2.1",
-    "@automerge/automerge-repo-network-websocket": "^1.2.1",
-    "@automerge/automerge-repo-react-hooks": "^1.2.1",
-    "@automerge/automerge-repo-storage-indexeddb": "^1.2.1",
+    "@automerge/automerge": "^3.2.1",
+    "@automerge/automerge-repo": "^2.5.1",
+    "@automerge/automerge-repo-network-websocket": "^2.5.1",
+    "@automerge/automerge-repo-react-hooks": "^2.5.1",
+    "@automerge/automerge-repo-storage-indexeddb": "^2.5.1",
     "leaflet": "^1.9.4",
     "map-app": "*",
     "market-app": "*",

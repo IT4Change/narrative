@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { DocumentId } from '@automerge/automerge-repo';
-import { useRepo } from '@automerge/automerge-repo-react-hooks';
 import { AppLayout, type AppContextValue } from 'narrative-ui';
-import type { DankWalletDoc, Voucher } from '../schema';
+import type { Voucher } from '../schema';
 // Debug extensions are auto-initialized via import
 import '../debug';
 import { useDankWallet } from '../hooks/useDankWallet';
@@ -31,12 +30,10 @@ export function MainView({
   onResetIdentity,
   onNewDocument,
 }: MainViewProps) {
-  const repo = useRepo();
-  const docHandle = repo.find<DankWalletDoc>(documentId);
-
-  // Use the Dank Wallet hook
+  // Hook now handles docHandle internally using useDocHandle
   const {
     doc,
+    docHandle,
     balances,
     activeVouchers,
     issuedVouchers,

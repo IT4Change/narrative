@@ -1,8 +1,6 @@
 import { DocumentId } from '@automerge/automerge-repo';
-import { useRepo } from '@automerge/automerge-repo-react-hooks';
 import { AppLayout, type AppContextValue } from 'narrative-ui';
 import { useMapDocument } from '../hooks/useMapDocument';
-import type { MapDoc } from '../schema/map-data';
 import { MapContent } from './MapContent';
 
 interface MapViewProps {
@@ -28,11 +26,9 @@ export function MapView({
   onResetIdentity,
   onNewDocument,
 }: MapViewProps) {
-  const repo = useRepo();
-  const docHandle = repo.find<MapDoc>(documentId);
+  // Hook now handles docHandle internally using useDocHandle
   const mapData = useMapDocument(
     documentId,
-    docHandle,
     currentUserDid,
     privateKey,
     publicKey,
@@ -44,7 +40,7 @@ export function MapView({
   return (
     <AppLayout
       doc={mapData?.doc}
-      docHandle={docHandle}
+      docHandle={mapData?.docHandle}
       documentId={documentId.toString()}
       currentUserDid={currentUserDid}
       appTitle="Narrative Map"

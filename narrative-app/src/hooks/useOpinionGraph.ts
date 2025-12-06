@@ -21,7 +21,7 @@ import { signEntity } from 'narrative-ui';
  */
 export function useOpinionGraph(
   docId: DocumentId,
-  docHandle: DocHandle<OpinionGraphDoc>,
+  docHandle: DocHandle<OpinionGraphDoc> | undefined,
   currentUserDid: string,
   privateKey?: string,
   publicKey?: string,
@@ -29,7 +29,8 @@ export function useOpinionGraph(
 ) {
   const [doc] = useDocument<OpinionGraphDoc>(docId);
 
-  if (!doc) {
+  // Return null if doc or docHandle not ready yet
+  if (!doc || !docHandle) {
     return null;
   }
 

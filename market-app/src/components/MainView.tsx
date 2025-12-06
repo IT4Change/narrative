@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import type { DocumentId } from '@automerge/automerge-repo';
-import { useRepo } from '@automerge/automerge-repo-react-hooks';
 import { AppLayout, type AppContextValue } from 'narrative-ui';
 import { useMarket } from '../hooks/useMarket';
-import type { ListingType, CategoryId, MarketAppDoc } from '../schema';
+import type { ListingType, CategoryId } from '../schema';
 import { CATEGORIES } from '../schema';
 import { ListingCard } from './ListingCard';
 import { CreateListingModal } from './CreateListingModal';
@@ -29,11 +28,10 @@ export function MainView({
   onResetIdentity,
   onNewDocument,
 }: MainViewProps) {
-  const repo = useRepo();
-  const docHandle = repo.find<MarketAppDoc>(documentId);
-
+  // Hook now handles docHandle internally using useDocHandle
   const {
     doc,
+    docHandle,
     isLoading,
     listings,
     createListing,

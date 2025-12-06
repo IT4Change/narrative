@@ -37,6 +37,7 @@ import { addTrustGiven, addTrustReceived, removeTrustGiven, updateUserProfile } 
 import { signEntity, verifyEntitySignature } from '../utils/signature';
 import { extractPublicKeyFromDid, base64Encode } from '../utils/did';
 import { updateDebugState } from '../utils/debug';
+import { broadcastProfileUpdate } from './useCrossTabSync';
 
 // Storage key for seen trust attestations
 const TRUST_STORAGE_KEY = 'narrativeTrustNotifications';
@@ -169,6 +170,19 @@ export interface UseAppContextOptions<TData = unknown> {
   repo?: Repo;
 }
 
+/**
+ * Profile data loaded from a trusted user's UserDocument
+ */
+export interface TrustedUserProfile {
+  did: string;
+  displayName?: string;
+  avatarUrl?: string;
+  /** The UserDoc URL (for reference) */
+  userDocUrl?: string;
+  /** When the profile was last fetched */
+  fetchedAt: number;
+}
+
 export interface AppContextValue<TData = unknown> {
   // Identity
   identity: StoredIdentity | null;
@@ -186,6 +200,13 @@ export interface AppContextValue<TData = unknown> {
   // Trust notifications
   pendingAttestations: TrustAttestation[];
   hasPendingTrust: boolean;
+
+  /**
+   * Profiles loaded from trusted users' UserDocuments
+   * Key is the DID, value is the profile data
+   * Use this for displaying avatars/names of verified friends
+   */
+  trustedUserProfiles: Record<string, TrustedUserProfile>;
 
   // Handlers
   handleSwitchWorkspace: (workspaceId: string) => void;
@@ -226,6 +247,7 @@ export interface AppContextValue<TData = unknown> {
     appTitle?: string;
     userDoc?: UserDocument | null;
     userDocUrl?: string;
+    trustedUserProfiles?: Record<string, TrustedUserProfile>;
   } | null;
 
   newWorkspaceModalProps: {
@@ -285,6 +307,9 @@ export function useAppContext<TData = unknown>(
   // Trust notifications state
   const [pendingAttestations, setPendingAttestations] = useState<TrustAttestation[]>([]);
 
+  // Trusted user profiles (loaded from their UserDocs)
+  const [trustedUserProfiles, setTrustedUserProfiles] = useState<Record<string, TrustedUserProfile>>({});
+
   // URL-based profile support
   const { openProfile } = useProfileUrl();
 
@@ -297,8 +322,17 @@ export function useAppContext<TData = unknown>(
   const workspaceAvatar = docContext?.avatar;
 
   // Track current workspace in list
+  // Use a ref to track last saved values to avoid infinite loops
+  const [lastSavedWorkspaceKey, setLastSavedWorkspaceKey] = useState('');
+
   useEffect(() => {
     if (!doc || !documentId) return;
+
+    // Create a stable key to check if we need to update
+    const currentKey = `${documentId}|${effectiveWorkspaceName}|${workspaceAvatar || ''}`;
+    if (currentKey === lastSavedWorkspaceKey) {
+      return;
+    }
 
     const workspaceInfo: WorkspaceInfo = {
       id: documentId,
@@ -312,7 +346,8 @@ export function useAppContext<TData = unknown>(
       saveWorkspaceList(updated);
       return updated;
     });
-  }, [documentId, doc, effectiveWorkspaceName, workspaceAvatar]);
+    setLastSavedWorkspaceKey(currentKey);
+  }); // No dependencies - we check manually with lastSavedWorkspaceKey
 
   // Update debug state when documents change (for console debugging)
   useEffect(() => {
@@ -324,8 +359,19 @@ export function useAppContext<TData = unknown>(
   }, [doc, userDoc, repo]);
 
   // Register own identity in workspace identityLookup on join
+  // Use a key to track last saved values and avoid infinite loops
+  const [lastIdentityLookupKey, setLastIdentityLookupKey] = useState('');
+
   useEffect(() => {
     if (!docHandle || !identity || !doc) return;
+
+    // Create a stable key for what we want to save
+    const desiredKey = `${identity.did}|${identity.displayName || ''}|${identity.avatarUrl || ''}|${userDocUrl || ''}`;
+
+    // Check if we already saved this
+    if (desiredKey === lastIdentityLookupKey) {
+      return;
+    }
 
     // Check if we need to update the lookup
     const currentLookup = doc.identityLookup?.[identity.did];
@@ -356,7 +402,9 @@ export function useAppContext<TData = unknown>(
         d.identityLookup[identity.did] = entry;
       });
     }
-  }, [docHandle, identity, doc, userDocUrl]);
+
+    setLastIdentityLookupKey(desiredKey);
+  }); // No dependencies - we check manually
 
   // Trust notifications detection (from User-Doc)
   // Verifies signatures before showing notifications
@@ -416,6 +464,83 @@ export function useAppContext<TData = unknown>(
 
     verifyAndSetAttestations();
   }, [userDoc, userDoc?.trustReceived, userDoc?.trustGiven, currentUserDid, documentId]);
+
+  // Load profiles from trusted users' UserDocuments
+  // This provides up-to-date avatars and display names for verified friends
+  // We use a ref to track the last loaded URLs to avoid infinite loops
+  const [lastLoadedUrlsKey, setLastLoadedUrlsKey] = useState('');
+
+  useEffect(() => {
+    if (!repo) {
+      setTrustedUserProfiles({});
+      return;
+    }
+
+    // Build a map of userDocUrls from trust relationships
+    const userDocUrls = new Map<string, string>();
+
+    // From trustReceived: users who trust us - they provided their trusterUserDocUrl
+    for (const [trusterDid, attestation] of Object.entries(userDoc?.trustReceived || {})) {
+      if (attestation.trusterUserDocUrl) {
+        userDocUrls.set(trusterDid, attestation.trusterUserDocUrl);
+      }
+    }
+
+    // From trustGiven: we trusted them, but we need their UserDoc URL
+    // Check if they also trusted us back (then we have their URL from trustReceived)
+    // If not in trustReceived, check workspace doc's identityLookup
+    for (const trusteeDid of Object.keys(userDoc?.trustGiven || {})) {
+      if (!userDocUrls.has(trusteeDid) && doc?.identityLookup?.[trusteeDid]?.userDocUrl) {
+        userDocUrls.set(trusteeDid, doc.identityLookup[trusteeDid].userDocUrl!);
+      }
+    }
+
+    // Create a stable key to check if we need to reload
+    const currentUrlsKey = Array.from(userDocUrls.entries())
+      .map(([did, url]) => `${did}=${url}`)
+      .sort()
+      .join('|');
+
+    // Skip if nothing changed
+    if (currentUrlsKey === lastLoadedUrlsKey) {
+      return;
+    }
+
+    if (userDocUrls.size === 0) {
+      setTrustedUserProfiles({});
+      setLastLoadedUrlsKey(currentUrlsKey);
+      return;
+    }
+
+    // Load each trusted user's UserDoc and extract profile
+    const loadProfiles = async () => {
+      const profiles: Record<string, TrustedUserProfile> = {};
+
+      for (const [did, userDocUrl] of userDocUrls) {
+        try {
+          const handle = await repo.find<UserDocument>(userDocUrl as AutomergeUrl);
+          const trustedUserDoc = handle.doc();
+
+          if (trustedUserDoc) {
+            profiles[did] = {
+              did,
+              displayName: trustedUserDoc.profile?.displayName,
+              avatarUrl: trustedUserDoc.profile?.avatarUrl,
+              userDocUrl,
+              fetchedAt: Date.now(),
+            };
+          }
+        } catch (err) {
+          console.warn(`Failed to load UserDoc for ${did}:`, err);
+        }
+      }
+
+      setTrustedUserProfiles(profiles);
+      setLastLoadedUrlsKey(currentUrlsKey);
+    };
+
+    loadProfiles();
+  }); // No dependencies - we check manually with lastLoadedUrlsKey
 
   // Current workspace info
   const currentWorkspace: WorkspaceInfo | null = doc
@@ -504,6 +629,9 @@ export function useAppContext<TData = unknown>(
         }
         d.identityLookup[identity.did].updatedAt = Date.now();
       });
+
+      // Broadcast profile update to other tabs via BroadcastChannel
+      broadcastProfileUpdate(updates);
     },
     [identity, docHandle, onUpdateIdentityInDoc, userDocUrl, userDocHandle]
   );
@@ -564,28 +692,24 @@ export function useAppContext<TData = unknown>(
       // 2. If we have the trustee's userDocUrl and repo, add to their trustReceived
       if (trusteeUserDocUrl && repo) {
         console.log('🤝 Writing to trustee userDoc:', trusteeUserDocUrl);
-        try {
-          const trusteeDocHandle = repo.find<UserDocument>(trusteeUserDocUrl as AutomergeUrl);
-          console.log('🤝 Found trustee doc handle, waiting for ready...');
-          trusteeDocHandle.whenReady().then(() => {
-            const currentDoc = trusteeDocHandle.docSync();
-            console.log('🤝 Trustee doc ready', {
-              hasTrustReceived: !!currentDoc?.trustReceived,
-              trusteeDid: currentDoc?.did,
-              currentTrustReceivedCount: Object.keys(currentDoc?.trustReceived || {}).length
-            });
-            trusteeDocHandle.change((d: UserDocument) => {
-              console.log('🤝 Inside trustee change callback', { trusteeDid: d.did });
-              addTrustReceived(d, attestation);
-              console.log('🤝 After addTrustReceived', { trustReceived: Object.keys(d.trustReceived || {}).length });
-            });
-            console.log('🤝 Change applied to trustee doc');
-          }).catch((err: unknown) => {
-            console.warn('🤝 Failed to update trustee userDoc:', err);
+        // In automerge-repo v2.x, find() returns a Promise
+        repo.find<UserDocument>(trusteeUserDocUrl as AutomergeUrl).then((trusteeDocHandle) => {
+          console.log('🤝 Found trustee doc handle');
+          const currentDoc = trusteeDocHandle.doc();
+          console.log('🤝 Trustee doc ready', {
+            hasTrustReceived: !!currentDoc?.trustReceived,
+            trusteeDid: currentDoc?.did,
+            currentTrustReceivedCount: Object.keys(currentDoc?.trustReceived || {}).length
           });
-        } catch (err) {
-          console.warn('🤝 Failed to find trustee userDoc:', err);
-        }
+          trusteeDocHandle.change((d: UserDocument) => {
+            console.log('🤝 Inside trustee change callback', { trusteeDid: d.did });
+            addTrustReceived(d, attestation);
+            console.log('🤝 After addTrustReceived', { trustReceived: Object.keys(d.trustReceived || {}).length });
+          });
+          console.log('🤝 Change applied to trustee doc');
+        }).catch((err: unknown) => {
+          console.warn('🤝 Failed to find/update trustee userDoc:', err);
+        });
       } else {
         console.log('🤝 No trusteeUserDocUrl or repo provided, skipping trustReceived update', {
           hasTrusteeUserDocUrl: !!trusteeUserDocUrl,
@@ -658,18 +782,14 @@ export function useAppContext<TData = unknown>(
       // If the original truster provided their userDocUrl, write to their trustReceived
       const existingAttestation = pendingAttestations.find(att => att.trusterDid === trusterDid);
       if (existingAttestation?.trusterUserDocUrl && repo) {
-        try {
-          const trusterDocHandle = repo.find<UserDocument>(existingAttestation.trusterUserDocUrl as AutomergeUrl);
-          trusterDocHandle.whenReady().then(() => {
-            trusterDocHandle.change((d: UserDocument) => {
-              addTrustReceived(d, attestation);
-            });
-          }).catch((err: unknown) => {
-            console.warn('Failed to update truster userDoc:', err);
+        // In automerge-repo v2.x, find() returns a Promise
+        repo.find<UserDocument>(existingAttestation.trusterUserDocUrl as AutomergeUrl).then((trusterDocHandle) => {
+          trusterDocHandle.change((d: UserDocument) => {
+            addTrustReceived(d, attestation);
           });
-        } catch (err) {
-          console.warn('Failed to find truster userDoc:', err);
-        }
+        }).catch((err: unknown) => {
+          console.warn('Failed to find/update truster userDoc:', err);
+        });
       }
 
       // Mark the corresponding attestation as seen
@@ -779,6 +899,7 @@ export function useAppContext<TData = unknown>(
         appTitle,
         userDoc,
         userDocUrl,
+        trustedUserProfiles,
       }
     : null;
 
@@ -792,6 +913,7 @@ export function useAppContext<TData = unknown>(
     isNewWorkspaceModalOpen,
     pendingAttestations,
     hasPendingTrust: pendingAttestations.length > 0,
+    trustedUserProfiles,
     handleSwitchWorkspace,
     handleNewWorkspace,
     handleUpdateIdentity,

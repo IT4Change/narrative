@@ -1,8 +1,9 @@
 import { UserAvatar } from './UserAvatar';
 import { processImageFile } from '../utils/imageProcessing';
 import { loadSharedIdentity, saveSharedIdentity } from '../utils/storage';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { BaseDocument } from '../schema/document';
+import type { UserDocument } from '../schema/userDocument';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface ProfileModalProps<TData = unknown> {
@@ -10,6 +11,8 @@ interface ProfileModalProps<TData = unknown> {
   onClose: () => void;
   currentUserDid: string;
   doc: BaseDocument<TData>;
+  /** UserDocument for consistent profile data (preferred source) */
+  userDoc?: UserDocument | null;
   onUpdateIdentity: (updates: { displayName?: string; avatarUrl?: string }) => void;
   onExportIdentity: () => void;
   onImportIdentity: () => void;
@@ -24,6 +27,7 @@ export function ProfileModal<TData = unknown>({
   onClose,
   currentUserDid,
   doc,
+  userDoc,
   onUpdateIdentity,
   onExportIdentity,
   onImportIdentity,
@@ -31,10 +35,20 @@ export function ProfileModal<TData = unknown>({
   initialDisplayName = '',
   userDocUrl,
 }: ProfileModalProps<TData>) {
-  const [nameInput, setNameInput] = useState(initialDisplayName);
+  // Derive current values from UserDocument (preferred) or workspace doc (fallback)
+  const workspaceProfile = doc?.identities?.[currentUserDid];
+  const currentDisplayName = userDoc?.profile?.displayName || workspaceProfile?.displayName || initialDisplayName;
+  const currentAvatarUrl = userDoc?.profile?.avatarUrl || workspaceProfile?.avatarUrl;
+
+  const [nameInput, setNameInput] = useState(currentDisplayName);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarSizeKB, setAvatarSizeKB] = useState<number>(0);
   const [avatarError, setAvatarError] = useState<string>('');
+
+  // Sync nameInput when external data changes (e.g., cross-tab sync)
+  useEffect(() => {
+    setNameInput(currentDisplayName);
+  }, [currentDisplayName]);
 
   const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -119,7 +133,7 @@ export function ProfileModal<TData = unknown>({
           <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-primary ring-offset-2 ring-offset-base-100">
             <UserAvatar
               did={currentUserDid}
-              avatarUrl={avatarPreview || doc?.identities?.[currentUserDid]?.avatarUrl}
+              avatarUrl={avatarPreview || currentAvatarUrl}
               size={96}
             />
           </div>
@@ -150,7 +164,7 @@ export function ProfileModal<TData = unknown>({
               onChange={handleAvatarFileSelect}
             />
 
-            {(doc?.identities?.[currentUserDid]?.avatarUrl || avatarPreview) && (
+            {(currentAvatarUrl || avatarPreview) && (
               <button className="btn btn-sm btn-ghost w-full" onClick={handleRemoveAvatar}>
                 Remove Avatar
               </button>

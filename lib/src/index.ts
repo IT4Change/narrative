@@ -44,7 +44,7 @@ export {
 // Hooks exports
 export { useRepository, type RepositoryOptions } from './hooks/useRepository';
 export { useTrustNotifications } from './hooks/useTrustNotifications';
-export { useAppContext, type UseAppContextOptions, type AppContextValue } from './hooks/useAppContext';
+export { useAppContext, type UseAppContextOptions, type AppContextValue, type TrustedUserProfile } from './hooks/useAppContext';
 export {
   useUserDocument,
   loadUserDocId,
@@ -58,6 +58,9 @@ export {
   useCrossTabSync,
   notifyCrossTabSync,
   getCrossTabState,
+  broadcastProfileUpdate,
+  broadcastIdentityChange,
+  broadcastUserDocChange,
   type CrossTabSyncOptions,
 } from './hooks/useCrossTabSync';
 

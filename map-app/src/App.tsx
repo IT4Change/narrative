@@ -5,6 +5,7 @@ import { MapView } from './components/MapView';
 function App() {
   const repo = useRepository({
     syncServer: 'wss://sync.automerge.org',
+    enableBroadcastChannel: true,
   });
 
   return (

@@ -314,7 +314,7 @@ fs.writeFileSync(path.join(appDir, 'src', 'App.tsx'), appTsx);
 // Create src/components/MainView.tsx
 const mainViewTsx = `import { useState, useEffect, useCallback } from 'react';
 import type { DocumentId } from '@automerge/automerge-repo';
-import { useRepo, useDocument } from '@automerge/automerge-repo-react-hooks';
+import { useDocHandle, useDocument } from '@automerge/automerge-repo-react-hooks';
 import {
   AppNavbar,
   ProfileModal,
@@ -348,8 +348,8 @@ export function MainView({
   onResetIdentity,
   onNewDocument,
 }: MainViewProps) {
-  const repo = useRepo();
-  const docHandle = repo.find<${pascalName}Doc>(documentId);
+  // In automerge-repo v2.x, useDocHandle handles async loading
+  const docHandle = useDocHandle<${pascalName}Doc>(documentId);
   const [doc] = useDocument<${pascalName}Doc>(documentId);
 
   // UI State
@@ -412,6 +412,7 @@ export function MainView({
   };
 
   const handleTrustUser = (trusteeDid: string) => {
+    if (!docHandle) return;
     docHandle.change((d) => {
       addTrustAttestation(d, currentUserDid, trusteeDid, 'verified', 'in-person');
       d.lastModified = Date.now();
@@ -419,6 +420,7 @@ export function MainView({
   };
 
   const updateIdentity = (updates: { displayName?: string; avatarUrl?: string }) => {
+    if (!docHandle) return;
     docHandle.change((d) => {
       if (!d.identities[currentUserDid]) {
         d.identities[currentUserDid] = {};

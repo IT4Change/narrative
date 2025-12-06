@@ -1,6 +1,5 @@
-import { useDocument } from '@automerge/automerge-repo-react-hooks';
-import type { DocumentId } from '@automerge/automerge-repo';
-import { useRepo } from '@automerge/automerge-repo-react-hooks';
+import { useDocument, useDocHandle } from '@automerge/automerge-repo-react-hooks';
+import type { DocumentId, DocHandle } from '@automerge/automerge-repo';
 import type {
   MarketAppDoc,
   Listing,
@@ -23,6 +22,7 @@ interface CreateListingInput {
 
 interface UseMarketReturn {
   doc: MarketAppDoc | undefined;
+  docHandle: DocHandle<MarketAppDoc> | undefined;
   isLoading: boolean;
 
   // Listings
@@ -50,10 +50,9 @@ interface UseMarketReturn {
 }
 
 export function useMarket(documentId: DocumentId): UseMarketReturn {
-  const repo = useRepo();
+  // In automerge-repo v2.x, useDocHandle handles async loading
+  const docHandle = useDocHandle<MarketAppDoc>(documentId);
   const [doc] = useDocument<MarketAppDoc>(documentId);
-
-  const docHandle = repo.find<MarketAppDoc>(documentId);
 
   // Computed values
   const listings = doc?.data?.listings
@@ -95,6 +94,11 @@ export function useMarket(documentId: DocumentId): UseMarketReturn {
 
   // Mutations
   const createListing = (input: CreateListingInput, creatorDid: string): string => {
+    if (!docHandle) {
+      console.warn('[createListing] docHandle not ready');
+      return '';
+    }
+
     const id = generateId();
     const now = Date.now();
 
@@ -157,6 +161,7 @@ export function useMarket(documentId: DocumentId): UseMarketReturn {
   };
 
   const updateListing = (id: string, updates: Partial<Listing>): void => {
+    if (!docHandle) return;
     docHandle.change((d) => {
       const listing = d.data.listings[id];
       if (!listing) return;
@@ -175,6 +180,7 @@ export function useMarket(documentId: DocumentId): UseMarketReturn {
   };
 
   const setListingStatus = (id: string, status: ListingStatus): void => {
+    if (!docHandle) return;
     docHandle.change((d) => {
       const listing = d.data.listings[id];
       if (!listing) return;
@@ -186,6 +192,7 @@ export function useMarket(documentId: DocumentId): UseMarketReturn {
   };
 
   const deleteListing = (id: string): void => {
+    if (!docHandle) return;
     docHandle.change((d) => {
       // Remove all reactions for this listing
       const reactionIds = d.data.listings[id]?.reactionIds ?? [];
@@ -204,6 +211,8 @@ export function useMarket(documentId: DocumentId): UseMarketReturn {
     reactorDid: string,
     message?: string
   ): string => {
+    if (!docHandle) return '';
+
     const id = generateId();
     const now = Date.now();
 
@@ -229,6 +238,7 @@ export function useMarket(documentId: DocumentId): UseMarketReturn {
   };
 
   const removeReaction = (reactionId: string, listingId: string): void => {
+    if (!docHandle) return;
     docHandle.change((d) => {
       const listing = d.data.listings[listingId];
       if (!listing) return;
@@ -250,6 +260,7 @@ export function useMarket(documentId: DocumentId): UseMarketReturn {
     did: string,
     updates: { displayName?: string; avatarUrl?: string }
   ): void => {
+    if (!docHandle) return;
     docHandle.change((d) => {
       if (!d.identities[did]) {
         d.identities[did] = {};
@@ -266,6 +277,7 @@ export function useMarket(documentId: DocumentId): UseMarketReturn {
 
   return {
     doc,
+    docHandle,
     isLoading: !doc,
     listings,
     getListingsByType,

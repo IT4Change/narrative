@@ -1,5 +1,5 @@
-import { useDocument } from '@automerge/automerge-repo-react-hooks';
-import { DocHandle, DocumentId } from '@automerge/automerge-repo';
+import { useDocument, useDocHandle } from '@automerge/automerge-repo-react-hooks';
+import { DocumentId } from '@automerge/automerge-repo';
 import type { MapDoc, UserLocation } from '../schema/map-data';
 import { generateId } from '../schema/map-data';
 import { signEntity } from 'narrative-ui';
@@ -10,15 +10,17 @@ import { signEntity } from 'narrative-ui';
  */
 export function useMapDocument(
   docId: DocumentId,
-  docHandle: DocHandle<MapDoc>,
   currentUserDid: string,
   privateKey?: string,
   publicKey?: string,
   displayName?: string
 ) {
+  // In automerge-repo v2.x, useDocHandle handles async loading
+  const docHandle = useDocHandle<MapDoc>(docId);
   const [doc] = useDocument<MapDoc>(docId);
 
-  if (!doc) {
+  // Return null if doc or docHandle not ready yet
+  if (!doc || !docHandle) {
     return null;
   }
 

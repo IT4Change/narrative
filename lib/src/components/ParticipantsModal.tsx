@@ -8,6 +8,7 @@
 import { UserListItem } from './UserListItem';
 import type { BaseDocument } from '../schema/document';
 import type { UserDocument } from '../schema/userDocument';
+import type { TrustedUserProfile } from '../hooks/useAppContext';
 
 interface ParticipantsModalProps<TData = unknown> {
   isOpen: boolean;
@@ -19,6 +20,11 @@ interface ParticipantsModalProps<TData = unknown> {
   onUserClick: (did: string) => void;
   /** User document for trust information (optional) */
   userDoc?: UserDocument | null;
+  /**
+   * Profiles loaded from trusted users' UserDocuments (optional)
+   * Used as primary source for avatar/name of verified friends
+   */
+  trustedUserProfiles?: Record<string, TrustedUserProfile>;
 }
 
 export function ParticipantsModal<TData = unknown>({
@@ -30,15 +36,22 @@ export function ParticipantsModal<TData = unknown>({
   onToggleUserVisibility,
   onUserClick,
   userDoc,
+  trustedUserProfiles = {},
 }: ParticipantsModalProps<TData>) {
   if (!isOpen) return null;
 
   // Get all workspace participants from doc.identities
-  const participants = Object.entries(doc.identities).map(([did, profile]) => ({
-    did,
-    displayName: profile?.displayName,
-    avatarUrl: profile?.avatarUrl,
-  }));
+  // For avatar/name: prefer trustedUserProfiles (from their UserDoc), fallback to doc.identities
+  const participants = Object.entries(doc.identities).map(([did, profile]) => {
+    const trustedProfile = trustedUserProfiles[did];
+    return {
+      did,
+      // Prefer name from trusted user's UserDoc, fallback to workspace identity
+      displayName: trustedProfile?.displayName || profile?.displayName,
+      // Prefer avatar from trusted user's UserDoc, fallback to workspace identity
+      avatarUrl: trustedProfile?.avatarUrl || profile?.avatarUrl,
+    };
+  });
 
   // Sort: current user first, then by name
   participants.sort((a, b) => {

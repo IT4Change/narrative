@@ -117,8 +117,8 @@ export async function waitForSync(
     );
 
     const checkSync = () => {
-      const doc1 = handle1.docSync();
-      const doc2 = handle2.docSync();
+      const doc1 = handle1.doc();
+      const doc2 = handle2.doc();
 
       if (!doc1 || !doc2) {
         setTimeout(checkSync, 50);

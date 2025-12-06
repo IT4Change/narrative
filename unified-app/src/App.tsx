@@ -12,6 +12,7 @@ import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
 function App() {
   const repo = useRepository({
     syncServer: 'wss://sync.automerge.org',
+    enableBroadcastChannel: true,
   });
 
   return (

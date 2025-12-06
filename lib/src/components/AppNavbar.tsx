@@ -42,6 +42,7 @@ import {
 import { useProfileUrl } from '../hooks/useProfileUrl';
 import type { BaseDocument } from '../schema/document';
 import type { UserDocument } from '../schema/userDocument';
+import type { TrustedUserProfile } from '../hooks/useAppContext';
 
 export interface AppNavbarProps<TData = unknown> {
   /** Current user's DID */
@@ -103,6 +104,12 @@ export interface AppNavbarProps<TData = unknown> {
 
   /** User document URL for bidirectional trust sync (optional) */
   userDocUrl?: string;
+
+  /**
+   * Profiles loaded from trusted users' UserDocuments (optional)
+   * Used as primary source for avatar/name of verified friends
+   */
+  trustedUserProfiles?: Record<string, TrustedUserProfile>;
 }
 
 export function AppNavbar<TData = unknown>({
@@ -126,6 +133,7 @@ export function AppNavbar<TData = unknown>({
   onShowToast,
   userDoc,
   userDocUrl,
+  trustedUserProfiles,
 }: AppNavbarProps<TData>) {
   // Modal states
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -351,6 +359,7 @@ export function AppNavbar<TData = unknown>({
         onClose={() => setShowProfileModal(false)}
         currentUserDid={currentUserDid}
         doc={doc}
+        userDoc={userDoc}
         onUpdateIdentity={onUpdateIdentity}
         onExportIdentity={handleExportIdentity}
         onImportIdentity={handleImportIdentity}
@@ -371,6 +380,7 @@ export function AppNavbar<TData = unknown>({
           openProfile(did);
         }}
         userDoc={userDoc}
+        trustedUserProfiles={trustedUserProfiles}
       />
 
       <CollaboratorsModal

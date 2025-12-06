@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import type { DocHandle, AutomergeUrl } from '@automerge/automerge-repo';
-import { useRepo, useDocument } from '@automerge/automerge-repo-react-hooks';
+import { useDocHandle, useDocument } from '@automerge/automerge-repo-react-hooks';
 import type { DocumentId } from '@automerge/automerge-repo';
 import { AppLayout, type AppContextValue, type UserDocument } from 'narrative-ui';
 import { UnifiedDocument, AVAILABLE_MODULES, ModuleId } from './types';
@@ -39,8 +39,8 @@ export function UnifiedApp({
   userDocId,
   userDocHandle,
 }: UnifiedAppProps) {
-  const repo = useRepo();
-  const docHandle = repo.find<UnifiedDocument>(documentId);
+  // In automerge-repo v2.x, use useDocHandle hook instead of repo.find()
+  const docHandle = useDocHandle<UnifiedDocument>(documentId);
 
   // Load documents reactively
   const [doc] = useDocument<UnifiedDocument>(documentId);

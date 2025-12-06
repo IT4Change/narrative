@@ -187,11 +187,11 @@ export function useUserDocument(
         if (savedDocId) {
           // Try to load existing document
           try {
-            handle = repo.find<UserDocument>(savedDocId as AutomergeUrl);
-            await handle.whenReady();
+            // In automerge-repo v2.x, find() returns a Promise that resolves when ready
+            handle = await repo.find<UserDocument>(savedDocId as AutomergeUrl);
 
             // Verify the document belongs to this user
-            const doc = handle.docSync();
+            const doc = handle.doc();
             if (doc && doc.did !== did) {
               console.warn('User document DID mismatch, creating new document');
               savedDocId = null;

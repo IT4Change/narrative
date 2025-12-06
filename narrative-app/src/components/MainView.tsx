@@ -1,6 +1,6 @@
 import type { DocHandle, AutomergeUrl } from '@automerge/automerge-repo';
 import { DocumentId } from '@automerge/automerge-repo';
-import { useRepo, useDocument } from '@automerge/automerge-repo-react-hooks';
+import { useDocHandle, useDocument } from '@automerge/automerge-repo-react-hooks';
 import { AppLayout, type AppContextValue, type UserDocument } from 'narrative-ui';
 import { useOpinionGraph } from '../hooks/useOpinionGraph';
 import type { OpinionGraphDoc } from '../schema/opinion-graph';
@@ -39,8 +39,8 @@ export function MainView({
   userDocId,
   userDocHandle: _userDocHandle, // Available for direct mutations if needed
 }: MainViewProps) {
-  const repo = useRepo();
-  const docHandle = repo.find<OpinionGraphDoc>(documentId);
+  // In automerge-repo v2.x, use useDocHandle hook instead of repo.find()
+  const docHandle = useDocHandle<OpinionGraphDoc>(documentId);
   const narrative = useOpinionGraph(documentId, docHandle, currentUserDid, privateKey, publicKey, displayName);
 
   // Load user document reactively

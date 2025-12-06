@@ -10,7 +10,7 @@
 
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import type { DocumentId } from '@automerge/automerge-repo';
-import { useRepo, useDocument } from '@automerge/automerge-repo-react-hooks';
+import { useDocHandle, useDocument } from '@automerge/automerge-repo-react-hooks';
 import { signJws, verifyJws, extractPublicKeyFromDid } from 'narrative-ui';
 import type {
   DankWalletDoc,
@@ -77,8 +77,8 @@ export function useDankWallet({
   currentUserDid,
   privateKey,
 }: UseDankWalletOptions) {
-  const repo = useRepo();
-  const docHandle = repo.find<DankWalletDoc>(documentId);
+  // In automerge-repo v2.x, useDocHandle handles async loading
+  const docHandle = useDocHandle<DankWalletDoc>(documentId);
   const [doc] = useDocument<DankWalletDoc>(documentId);
 
   // Track validation results for UI
@@ -147,6 +147,10 @@ export function useDankWallet({
       if (params.recipientId === currentUserDid) {
         voucher.status = 'redeemed';
         voucher.redeemedAt = createdAt;
+      }
+
+      if (!docHandle) {
+        throw new Error('Document handle not ready');
       }
 
       docHandle.change((d) => {
@@ -219,6 +223,10 @@ export function useDankWallet({
       // Only add optional fields if they have values
       if (note) {
         transfer.note = note;
+      }
+
+      if (!docHandle) {
+        throw new Error('Document handle not ready');
       }
 
       docHandle.change((d) => {

@@ -135,14 +135,14 @@ export function AppShell<TDoc>({
     if (!userDocHandle) return;
 
     // Initial update
-    const doc = userDocHandle.docSync();
+    const doc = userDocHandle.doc();
     if (doc) {
       updateDebugState({ userDoc: doc });
     }
 
     // Subscribe to changes
     const onChange = () => {
-      const updatedDoc = userDocHandle.docSync();
+      const updatedDoc = userDocHandle.doc();
       updateDebugState({ userDoc: updatedDoc });
     };
 
@@ -184,11 +184,11 @@ export function AppShell<TDoc>({
     if (savedUserDocId) {
       // Try to load existing user document
       try {
-        handle = repo.find<UserDocument>(savedUserDocId as AutomergeUrl);
-        await handle.whenReady();
+        // In automerge-repo v2.x, find() returns a Promise that resolves when ready
+        handle = await repo.find<UserDocument>(savedUserDocId as AutomergeUrl);
 
         // Verify the document belongs to this user
-        const doc = handle.docSync();
+        const doc = handle.doc();
         if (doc && doc.did !== identity.did) {
           console.warn('User document DID mismatch, creating new document');
           // Create new document instead
@@ -289,17 +289,18 @@ export function AppShell<TDoc>({
 
       try {
         // Load existing document
-        const handle = repo.find(normalizedDocId as AutomergeUrl);
-
-        // Wait for document to be ready with timeout
+        // In automerge-repo v2.x, find() returns a Promise that resolves when ready
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error('Document load timeout')), DOC_LOAD_TIMEOUT);
         });
 
-        await Promise.race([handle.whenReady(), timeoutPromise]);
+        const handle = await Promise.race([
+          repo.find(normalizedDocId as AutomergeUrl),
+          timeoutPromise,
+        ]);
 
         // Verify document was actually loaded (not just created empty)
-        const doc = handle.docSync();
+        const doc = handle.doc();
         if (!doc) {
           throw new Error('Document not found or empty');
         }

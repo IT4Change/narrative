@@ -251,19 +251,29 @@ const repo = new Repo({
 </RepoContext.Provider>
 ```
 
-**Document Access:**
+**Document Access (automerge-repo v2.x):**
 ```typescript
-// In components
-const repo = useRepo();
-const docHandle = repo.find<MyDocType>(docId);
+// In components - useDocHandle handles async loading automatically
+import { useDocHandle, useDocument } from '@automerge/automerge-repo-react-hooks';
+
+const docHandle = useDocHandle<MyDocType>(docId);  // May be undefined while loading
 const [doc] = useDocument<MyDocType>(docId);
 
-// Mutations
+// Mutations - always check if docHandle is ready
 const mutate = () => {
+  if (!docHandle) return;  // Guard for undefined
   docHandle.change((d) => {
     d.field = newValue;  // Direct mutation
   });
 };
+```
+
+**Async find() in non-React contexts (v2.x):**
+
+```typescript
+// repo.find() is now async in v2.x - returns Promise<DocHandle>
+const handle = await repo.find<MyDocType>(docId);
+// Handle is ready immediately, no whenReady() needed
 ```
 
 ### Performance Considerations
@@ -297,4 +307,5 @@ const mutate = () => {
   - Document syncs automatically when connected to sync server
 - **localStorage usage**: Clearing `narrativeIdentity` creates a new user; clearing `narrativeDocId` creates a new board
 - **URL-based sharing**: Document ID in hash allows multiple users to collaborate on the same doc via sync server
-- **Network adapter compatibility**: `BroadcastChannelNetworkAdapter` was found to interfere with cross-browser document loading via WebSocket. When a document created in Browser A is opened in Browser B, the BroadcastChannel adapter can prevent the document from syncing properly from the WebSocket server, resulting in endless "Loading document..." spinner. For cross-browser collaboration, use only `BrowserWebSocketClientAdapter`. BroadcastChannel is only useful for same-browser, multi-tab sync, which is a less critical use case.
+- **Automerge versions**: The project uses `@automerge/automerge@^3.2.1` and `@automerge/automerge-repo@^2.5.1`. The `repo.find()` method is async in v2.x (returns `Promise<DocHandle>`), and React components should use `useDocHandle()` hook instead.
+- **Network adapter compatibility**: `BroadcastChannelNetworkAdapter` can be enabled via `enableBroadcastChannel: true` in `useRepository` for instant same-browser multi-tab sync. This works alongside WebSocket sync.

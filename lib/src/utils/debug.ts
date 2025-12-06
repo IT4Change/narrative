@@ -171,9 +171,9 @@ async function loadDocById(docId: string): Promise<unknown> {
   console.log(`🔄 Loading document: ${normalizedId.substring(0, 50)}...`);
 
   try {
-    const handle = _repo.find(normalizedId as AutomergeUrl);
-    await handle.whenReady();
-    const doc = handle.docSync();
+    // In automerge-repo v2.x, find() returns a Promise that resolves when ready
+    const handle = await _repo.find(normalizedId as AutomergeUrl);
+    const doc = handle.doc();
 
     if (doc) {
       console.log('✅ Document loaded:', doc);
