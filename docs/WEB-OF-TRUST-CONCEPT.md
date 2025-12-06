@@ -60,7 +60,7 @@ Narrative is a **local-first Web of Trust ecosystem** that enables decentralized
 │                                                                 │
 │  Owner: did:key:z6MkAlice...                                   │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │ profile: { displayName, avatarUrl }                      │  │
+│  │ profile: { displayName, avatarUrl, signature } (signed!) │  │
 │  ├──────────────────────────────────────────────────────────┤  │
 │  │ trustGiven: {                                            │  │
 │  │   "did:key:z6MkBob...": TrustAttestation (signed by me)  │  │
@@ -124,10 +124,99 @@ interface StoredIdentity {
 | Extract public key from DID | `extractPublicKeyFromDid()` | `lib/src/utils/did.ts` |
 | Sign data (JWS) | `signEntity()` | `lib/src/utils/signature.ts` |
 | Verify signature | `verifyEntitySignature()` | `lib/src/utils/signature.ts` |
+| Sign profile | `signProfile()` | `lib/src/utils/signature.ts` |
+| Verify profile signature | `verifyProfileSignature()` | `lib/src/utils/signature.ts` |
 
 ---
 
-## Part 3: Trust Attestation System
+## Part 3: Profile Signatures
+
+### Why Sign Profiles?
+
+**Problem**: Anyone can write to any Automerge document (CRDT characteristic). Without signatures, an attacker could manipulate someone's profile (change name/avatar) to impersonate them.
+
+**Solution**: Profiles are signed by the document owner. Invalid signatures trigger fallback to DID-based display.
+
+### UserProfile Schema
+
+```typescript
+interface UserProfile {
+  displayName: string;
+  avatarUrl?: string;
+  /** Timestamp when profile was last updated (included in signature) */
+  updatedAt?: number;
+  /**
+   * JWS signature proving this profile was set by the document owner
+   * Signed payload: { displayName, avatarUrl, updatedAt }
+   * Verified against the DID in the parent UserDocument
+   */
+  signature?: string;
+}
+```
+
+### Profile Signing
+
+When a user updates their profile, the system:
+
+1. Creates a canonical payload: `{ displayName, avatarUrl?, updatedAt }`
+2. Signs it with the user's private key (JWS compact serialization)
+3. Stores signature in `profile.signature`
+
+```typescript
+// In useAppContext.ts - handleUpdateIdentity()
+const profilePayload = {
+  displayName: newDisplayName,
+  avatarUrl: newAvatarUrl,
+  updatedAt: Date.now(),
+};
+const signature = await signProfile(profilePayload, privateKey);
+```
+
+### Profile Verification
+
+When loading a trusted user's profile:
+
+```typescript
+const status = await verifyUserProfileSignature(profile, ownerDid);
+// Returns: 'valid' | 'invalid' | 'missing' | 'pending'
+```
+
+### Security Behavior
+
+| Status | Icon | Display Behavior |
+|--------|------|------------------|
+| `valid` | 👤✓ green | Show profile name and avatar |
+| `invalid` | ⚠️ red | **Fallback to DID-based name**, hide avatar |
+| `missing` | 👤? gray | Show profile (legacy, unsigned) |
+| `pending` | ⏳ | Show profile while verifying |
+
+### Visual Example
+
+```
+┌─────────────────────────────────────┐
+│ 👤 Max Mustermann  ✓ Profil OK     │  ← Valid signature
+├─────────────────────────────────────┤
+│ 👤 User-z6Mk...    ⚠️ Manipuliert! │  ← Invalid: falls back to DID
+├─────────────────────────────────────┤
+│ 👤 Old User        ? Legacy         │  ← Missing: shown but marked
+└─────────────────────────────────────┘
+```
+
+### Key Functions
+
+| Function | Location | Purpose |
+|----------|----------|---------|
+| `signProfile()` | `lib/src/utils/signature.ts` | Sign profile data |
+| `verifyProfileSignature()` | `lib/src/utils/signature.ts` | Verify profile signature |
+| `handleUpdateIdentity()` | `lib/src/hooks/useAppContext.ts` | Signs profile on update |
+
+---
+
+## Part 4: Trust Attestation System
+
+### What is a Trust Attestation?
+
+A cryptographically signed statement: "I (truster) have personally verified this person (trustee) and trust their DID."
 
 ### What We Sign
 
@@ -447,6 +536,9 @@ function calculateTrustLevel(
 - [x] Trust network view (Vertrauensnetzwerk)
 - [x] Profile modal with trust actions
 - [x] Automatic invalid signature cleanup
+- [x] **Profile signatures** (prevent profile manipulation)
+- [x] Profile fallback on invalid signature (DID-based name)
+- [x] Profile signature badges in UI
 
 ### ⏳ Future
 

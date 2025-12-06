@@ -1,0 +1,222 @@
+# Narrative Web of Trust Ecosystem
+
+> Local-first collaboration platform with decentralized identity and Web of Trust.
+> Live: https://web-of-trust.de
+
+## Quick Facts
+
+- **Stack**: React 18, TypeScript, Vite, Tailwind/DaisyUI, Automerge CRDTs
+- **Identity**: did:key with Ed25519 signatures
+- **Sync**: WebSocket (sync.automerge.org), IndexedDB storage
+- **Library**: `narrative-ui` - shared infrastructure for all apps
+
+## Project Structure
+
+```
+narrative/
+├── lib/                 # Shared library (narrative-ui)
+├── narrative-app/       # Assumptions & voting app
+├── map-app/             # Collaborative maps
+├── market-app/          # Decentralized marketplace
+├── dank-app/            # Voucher system
+├── unified-app/         # All-in-one PWA
+├── shared-config/       # Shared Vite/TS config
+└── scripts/             # Scaffolding (create-app.mjs)
+```
+
+## Creating a New App
+
+```bash
+npm run create-app my-app --port 3005 --title "My App"
+npm install
+npm run dev:my
+```
+
+This creates a complete app scaffold with:
+- Schema (`src/schema/index.ts`) - Define your data model
+- MainView (`src/components/MainView.tsx`) - Build your UI
+- App.tsx - AppShell setup with UserDocument enabled
+
+## Core Concepts
+
+### 1. BaseDocument (Workspace)
+
+Every workspace document extends `BaseDocument<TData>`:
+
+```typescript
+interface BaseDocument<TData> {
+  version: string;
+  lastModified: number;
+  identities: Record<DID, IdentityProfile>;  // User profiles in this workspace
+  identityLookup: Record<DID, { displayName, avatarUrl }>;
+  data: TData;  // Your app-specific data
+}
+```
+
+### 2. UserDocument (Cross-Workspace Personal)
+
+Each user has ONE UserDocument shared across all apps:
+
+```typescript
+interface UserDocument {
+  did: string;
+  profile: UserProfile;  // Signed by owner!
+  trustGiven: Record<DID, TrustAttestation>;     // Who I trust
+  trustReceived: Record<DID, TrustAttestation>;  // Who trusts me
+  workspaces: Record<DocId, WorkspaceRef>;       // My workspaces
+  vouchers: Record<string, Voucher>;             // DANK tokens
+}
+
+interface UserProfile {
+  displayName: string;
+  avatarUrl?: string;
+  updatedAt?: number;
+  signature?: string;  // JWS - prevents profile manipulation
+}
+```
+
+**Security**: Profiles are signed. Invalid signatures → fallback to DID-based name, avatar hidden.
+
+### 3. Trust Attestations
+
+Signed proofs of trust relationships:
+
+```typescript
+interface TrustAttestation {
+  id: string;
+  trusterDid: string;      // Who is trusting
+  trusteeDid: string;      // Who is trusted
+  level: 'verified' | 'endorsed';
+  signature: string;       // JWS signature
+  createdAt: number;
+  trusterUserDocUrl?: string;  // For bidirectional sync
+}
+```
+
+## Key Library Exports
+
+### Schema
+```typescript
+import {
+  BaseDocument, UserDocument, UserIdentity, TrustAttestation,
+  createBaseDocument, createUserDocument
+} from 'narrative-ui';
+```
+
+### Hooks
+```typescript
+import {
+  useRepository,      // Automerge repo with IndexedDB + WebSocket
+  useUserDocument,    // Load/manage UserDocument
+  useAppContext,      // Central app state (identity, trust, modals)
+  useTrustNotifications,  // Detect incoming trust requests
+} from 'narrative-ui';
+```
+
+### Components
+```typescript
+import {
+  AppShell,           // Initializes repo, identity, document
+  AppLayout,          // Standard layout with navbar
+  UserProfileModal,   // Show/edit profiles
+  QRScannerModal,     // Scan QR for trust verification
+  TrustReciprocityModal,  // Answer trust requests
+  UserAvatar,         // Avatar from DID
+  UserListItem,       // User in lists with trust badges
+} from 'narrative-ui';
+```
+
+### Utilities
+```typescript
+import {
+  generateDidIdentity,     // Create new Ed25519 identity
+  signJws, verifyJws,      // JWS signatures
+  loadSharedIdentity,      // Load from localStorage
+  processImageFile,        // Resize avatars
+} from 'narrative-ui';
+```
+
+## Minimal App Example
+
+```tsx
+import { useRepository, AppShell, AppLayout, createBaseDocument } from 'narrative-ui';
+
+interface MyData { items: string[] }
+
+function App() {
+  const repo = useRepository();
+
+  return (
+    <AppShell
+      repo={repo}
+      storagePrefix="myapp"
+      createEmptyDocument={(identity) =>
+        createBaseDocument<MyData>({ items: [] }, identity)
+      }
+      enableUserDocument
+    >
+      {(props) => (
+        <AppLayout {...props} appTitle="My App">
+          {(ctx) => <MyContent ctx={ctx} />}
+        </AppLayout>
+      )}
+    </AppShell>
+  );
+}
+```
+
+## Automerge Mutation Pattern
+
+All document changes MUST use `docHandle.change()`:
+
+```typescript
+// CORRECT - Direct mutation inside change callback
+docHandle.change((d) => {
+  d.data.items.push(newItem);
+  d.lastModified = Date.now();
+});
+
+// WRONG - Never replace arrays
+docHandle.change((d) => {
+  d.data.items = [...d.data.items, newItem];  // BAD!
+});
+```
+
+## Trust Flow (QR Code)
+
+1. User A shows QR code containing `narrative://verify/{did}?userDoc={url}`
+2. User B scans QR, creates signed TrustAttestation
+3. Attestation written to A's `trustReceived` and B's `trustGiven`
+4. A sees notification, can trust back for bidirectional trust
+
+## File Locations
+
+| Purpose | Location |
+|---------|----------|
+| App schema | `{app}/src/schema/index.ts` |
+| Main view | `{app}/src/components/MainView.tsx` |
+| Library components | `lib/src/components/` |
+| Library hooks | `lib/src/hooks/` |
+| DID utilities | `lib/src/utils/did.ts` |
+| Signature utilities | `lib/src/utils/signature.ts` |
+| Storage utilities | `lib/src/utils/storage.ts` |
+
+## Commands
+
+```bash
+npm run build:lib          # Build library (required first)
+npm run dev:narrative      # Start narrative-app
+npm run dev:map            # Start map-app
+npm run create-app <name>  # Scaffold new app
+npm run test               # Run library tests
+```
+
+## Further Reading
+
+- `CLAUDE.md` - Detailed development guide
+- `CONTRIBUTING.md` - How to contribute
+- `docs/TUTORIAL.md` - Step-by-step app tutorial
+- `lib/README.md` - Library documentation
+- `lib/src/hooks/README.md` - Hooks reference
+- `docs/WEB-OF-TRUST-CONCEPT.md` - Trust architecture (incl. profile signatures)
+- `docs/IDENTITY-CONCEPT.md` - Identity system

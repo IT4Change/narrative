@@ -247,9 +247,22 @@ GitHub Actions deployed automatisch bei Push auf `main`:
 
 ## Dokumentation
 
+**Für Entwickler:**
+
+- [docs/TUTORIAL.md](docs/TUTORIAL.md) - **Tutorial: Deine erste App**
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Wie du beitragen kannst
 - [lib/README.md](lib/README.md) - Library Dokumentation
 - [lib/src/hooks/README.md](lib/src/hooks/README.md) - Hooks Dokumentation
-- [CLAUDE.md](CLAUDE.md) - Development Guide für AI
+
+**Für AI-Assistenten:**
+
+- [llms.txt](llms.txt) - Kompakte Referenz für LLMs
+- [CLAUDE.md](CLAUDE.md) - Detaillierter Development Guide
+
+**Konzepte & Architektur:**
+
+- [docs/WEB-OF-TRUST-CONCEPT.md](docs/WEB-OF-TRUST-CONCEPT.md) - Trust-System inkl. Profil-Signaturen
+- [docs/IDENTITY-CONCEPT.md](docs/IDENTITY-CONCEPT.md) - Identitätssystem
 
 ## Lizenz
 
