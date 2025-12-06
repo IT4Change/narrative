@@ -88,6 +88,9 @@ export interface AppNavbarProps<TData = unknown> {
   /** User document for trust information (optional) */
   userDoc?: UserDocument | null;
 
+  /** User document URL for QR code generation (optional) */
+  userDocUrl?: string;
+
   /**
    * Profiles loaded from trusted users' UserDocuments (optional)
    * Used as primary source for avatar/name of verified friends
@@ -112,6 +115,7 @@ export function AppNavbar<TData = unknown>({
   onShareLink,
   onShowToast,
   userDoc,
+  userDocUrl,
   trustedUserProfiles,
 }: AppNavbarProps<TData>) {
   // Modal states
@@ -361,6 +365,7 @@ export function AppNavbar<TData = unknown>({
         doc={doc}
         currentUserDid={currentUserDid}
         onTrustUser={onTrustUser}
+        userDocUrl={userDocUrl}
       />
     </>
   );

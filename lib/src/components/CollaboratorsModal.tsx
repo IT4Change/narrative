@@ -62,6 +62,8 @@ interface CollaboratorsModalProps<TData = unknown> {
    * Used as primary source for avatar/name of verified friends
    */
   trustedUserProfiles?: Record<string, TrustedUserProfile>;
+  /** User document URL for QR code generation */
+  userDocUrl?: string;
 }
 
 export function CollaboratorsModal<TData = unknown>({
@@ -75,6 +77,7 @@ export function CollaboratorsModal<TData = unknown>({
   onUserClick,
   userDoc,
   trustedUserProfiles = {},
+  userDocUrl,
 }: CollaboratorsModalProps<TData>) {
   const [showScanner, setShowScanner] = useState(false);
 
@@ -287,6 +290,7 @@ export function CollaboratorsModal<TData = unknown>({
         currentUserDid={currentUserDid}
         doc={doc}
         onTrustUser={onTrustUser}
+        userDocUrl={userDocUrl}
       />
     </div>
   );

@@ -275,6 +275,7 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
           currentUserDid={currentUserDid}
           doc={doc}
           onTrustUser={ctx.handleTrustUser}
+          userDocUrl={userDocUrl}
         />
       )}
     </div>

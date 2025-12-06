@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
+import { useRepo } from '@automerge/automerge-repo-react-hooks';
+import type { AutomergeUrl } from '@automerge/automerge-repo';
+import { QRCodeSVG } from 'qrcode.react';
 import type { BaseDocument } from '../schema/document';
+import type { UserDocument } from '../schema/userDocument';
 import { UserAvatar } from './UserAvatar';
-import { getDefaultDisplayName } from '../utils/did';
+import { getDefaultDisplayName, extractPublicKeyFromDid, base64Encode } from '../utils/did';
+import { verifyProfileSignature } from '../utils/signature';
+
+type SignatureStatus = 'valid' | 'invalid' | 'missing' | 'pending' | 'loading';
 
 interface QRScannerModalProps<TData = unknown> {
   isOpen: boolean;
@@ -11,6 +18,8 @@ interface QRScannerModalProps<TData = unknown> {
   doc: BaseDocument<TData>;
   /** Callback when user trusts another user. Receives DID and optional userDocUrl for bidirectional trust. */
   onTrustUser: (did: string, userDocUrl?: string) => void;
+  /** Current user's UserDocument URL (for showing own QR code after confirming) */
+  userDocUrl?: string;
 }
 
 export function QRScannerModal<TData = unknown>({
@@ -19,12 +28,95 @@ export function QRScannerModal<TData = unknown>({
   currentUserDid,
   doc,
   onTrustUser,
+  userDocUrl,
 }: QRScannerModalProps<TData>) {
+  const repo = useRepo();
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [scannedDid, setScannedDid] = useState<string | null>(null);
   const [scannedUserDocUrl, setScannedUserDocUrl] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
+  const [signatureStatus, setSignatureStatus] = useState<SignatureStatus>('pending');
+  const [loadedProfile, setLoadedProfile] = useState<{ displayName?: string; avatarUrl?: string } | null>(null);
+  const [showOwnQR, setShowOwnQR] = useState(false);
+  const [confirmedUserName, setConfirmedUserName] = useState<string>('');
+
+  // Load UserDocument and verify signature when scanned (reactive)
+  useEffect(() => {
+    if (!scannedDid || !scannedUserDocUrl) {
+      setSignatureStatus('missing');
+      setLoadedProfile(null);
+      return;
+    }
+
+    let cleanup: (() => void) | undefined;
+
+    const loadAndVerify = async () => {
+      setSignatureStatus('loading');
+      try {
+        // Load the UserDocument
+        const handle = await repo.find<UserDocument>(scannedUserDocUrl as AutomergeUrl);
+
+        // Function to update profile from document
+        const updateFromDoc = async (userDoc: UserDocument | undefined) => {
+          if (!userDoc || !userDoc.profile) {
+            console.warn('[QRScannerModal] UserDocument or profile not found');
+            setSignatureStatus('missing');
+            setLoadedProfile(null);
+            return;
+          }
+
+          // Verify the DID matches
+          if (userDoc.did !== scannedDid) {
+            console.warn('[QRScannerModal] DID mismatch in UserDocument');
+            setSignatureStatus('invalid');
+            return;
+          }
+
+          // Store the profile data from UserDocument
+          setLoadedProfile({
+            displayName: userDoc.profile.displayName,
+            avatarUrl: userDoc.profile.avatarUrl,
+          });
+
+          // Check if profile has a signature
+          if (!userDoc.profile.signature) {
+            setSignatureStatus('missing');
+            return;
+          }
+
+          // Verify the profile signature
+          const publicKeyBytes = extractPublicKeyFromDid(scannedDid);
+          const publicKeyBase64 = base64Encode(publicKeyBytes);
+          const result = await verifyProfileSignature(userDoc.profile, publicKeyBase64);
+
+          setSignatureStatus(result.valid ? 'valid' : 'invalid');
+        };
+
+        // Initial update
+        await updateFromDoc(handle.doc());
+
+        // Subscribe to changes for reactive updates
+        const onChange = () => {
+          updateFromDoc(handle.doc());
+        };
+        handle.on('change', onChange);
+
+        cleanup = () => {
+          handle.off('change', onChange);
+        };
+      } catch (error) {
+        console.error('[QRScannerModal] Failed to load/verify UserDocument:', error);
+        setSignatureStatus('missing');
+      }
+    };
+
+    loadAndVerify();
+
+    return () => {
+      cleanup?.();
+    };
+  }, [scannedDid, scannedUserDocUrl, repo]);
 
   // Start scanner when modal opens
   useEffect(() => {
@@ -94,7 +186,7 @@ export function QRScannerModal<TData = unknown>({
           const state = currentScanner.getState();
           // Only try to stop if actually scanning
           if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-            currentScanner.stop().catch(() => {});
+            currentScanner.stop().catch(() => { });
           }
           currentScanner.clear();
         } catch (error) {
@@ -112,7 +204,7 @@ export function QRScannerModal<TData = unknown>({
         const state = scannerRef.current.getState();
         // Only try to stop if actually scanning
         if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-          scannerRef.current.stop().catch(() => {});
+          scannerRef.current.stop().catch(() => { });
         }
         scannerRef.current.clear();
         scannerRef.current = null;
@@ -124,6 +216,10 @@ export function QRScannerModal<TData = unknown>({
     setScannedUserDocUrl(null);
     setScanError('');
     setIsScanning(false);
+    setSignatureStatus('pending');
+    setLoadedProfile(null);
+    setShowOwnQR(false);
+    setConfirmedUserName('');
     onClose();
   };
 
@@ -135,10 +231,26 @@ export function QRScannerModal<TData = unknown>({
       hasOnTrustUser: !!onTrustUser
     });
     if (scannedDid) {
+      // Get display name before clearing state
+      const workspaceProfile = doc.identities[scannedDid];
+      const userName = loadedProfile?.displayName || workspaceProfile?.displayName || getDefaultDisplayName(scannedDid);
+
       console.log('[QRScannerModal] Calling onTrustUser with:', scannedDid, scannedUserDocUrl);
       onTrustUser(scannedDid, scannedUserDocUrl ?? undefined);
-      console.log('[QRScannerModal] onTrustUser returned, closing modal');
-      handleClose();
+
+      // Show own QR code for reciprocal trust (if userDocUrl is available)
+      if (userDocUrl) {
+        setConfirmedUserName(userName);
+        setShowOwnQR(true);
+        // Clear scanned data but keep modal open
+        setScannedDid(null);
+        setScannedUserDocUrl(null);
+        setLoadedProfile(null);
+        setSignatureStatus('pending');
+      } else {
+        console.log('[QRScannerModal] No userDocUrl, closing modal');
+        handleClose();
+      }
     } else {
       console.warn('[QRScannerModal] handleTrust called but no scannedDid!');
     }
@@ -146,10 +258,11 @@ export function QRScannerModal<TData = unknown>({
 
   if (!isOpen) return null;
 
-  // Show confirmation dialog after successful scan
-  if (scannedDid) {
-    const profile = doc.identities[scannedDid];
-    const displayName = profile?.displayName || getDefaultDisplayName(scannedDid);
+  // Show own QR code after confirming trust (for reciprocal trust)
+  if (showOwnQR && userDocUrl) {
+    const ownProfile = doc.identities[currentUserDid];
+    const ownDisplayName = ownProfile?.displayName || getDefaultDisplayName(currentUserDid);
+    const ownQrValue = `narrative://verify/${currentUserDid}?userDoc=${encodeURIComponent(userDocUrl)}`;
 
     return (
       <div className="modal modal-open z-[9999]">
@@ -161,46 +274,104 @@ export function QRScannerModal<TData = unknown>({
             ✕
           </button>
 
-          <h3 className="font-bold text-lg mb-4">Verify Identity</h3>
+          <h3 className="font-bold text-xl mb-4 text-center">Zeige jetzt deinen Code</h3>
+
+          <div className="flex flex-col items-center mb-4">
+            <div className="bg-white p-3 rounded-xl shadow-sm">
+              <QRCodeSVG value={ownQrValue} size={180} level="M" />
+            </div>
+            <div className="alert alert-success py-3 justify-center text-center mt-4">
+
+              <div className="text-sm text-base-content text-center">
+                Lass <span className="font-bold">{confirmedUserName}</span> jetzt deinen QR-Code scannen, damit ihr euch gegenseitig vertraut!
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div className="modal-backdrop" onClick={handleClose}></div>
+      </div>
+    );
+  }
+
+  // Show confirmation dialog after successful scan
+  if (scannedDid) {
+    const workspaceProfile = doc.identities[scannedDid];
+    // Prefer profile from UserDocument (if loaded), fall back to workspace profile
+    const displayName = loadedProfile?.displayName || workspaceProfile?.displayName || getDefaultDisplayName(scannedDid);
+    const avatarUrl = loadedProfile?.avatarUrl || workspaceProfile?.avatarUrl;
+
+    // Render signature badge
+    const renderSignatureBadge = () => {
+      if (signatureStatus === 'loading') {
+        return (
+          <span className="tooltip tooltip-top" data-tip="Profil wird geprüft...">
+            <span className="loading loading-spinner loading-xs"></span>
+          </span>
+        );
+      }
+      if (signatureStatus === 'valid') {
+        return (
+          <span className="tooltip tooltip-top" data-tip="Profil verifiziert">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+        );
+      }
+      if (signatureStatus === 'invalid') {
+        return (
+          <span className="tooltip tooltip-top" data-tip="Profil manipuliert!">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </span>
+        );
+      }
+      // 'missing' or 'pending' - no badge shown
+      return null;
+    };
+
+    return (
+      <div className="modal modal-open z-[9999]">
+        <div className="modal-box max-w-md">
+          <button
+            className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+            onClick={handleClose}
+          >
+            ✕
+          </button>
+
+          <h3 className="font-bold text-xl mb-4 text-center">Freund hinzufügen</h3>
 
           <div className="flex flex-col items-center gap-4 p-4 bg-base-200 rounded-lg">
             <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-primary ring-offset-2 ring-offset-base-100">
               <UserAvatar
                 did={scannedDid}
-                avatarUrl={profile?.avatarUrl}
+                avatarUrl={avatarUrl}
                 size={80}
               />
             </div>
             <div className="text-center">
-              <div className="font-bold text-lg">{displayName}</div>
+              <div className="flex items-center justify-center gap-2">
+                <div className="font-bold text-lg">{displayName}</div>
+                {renderSignatureBadge()}
+              </div>
               <div className="text-xs text-base-content/50 break-all mt-2">
                 {scannedDid}
               </div>
             </div>
           </div>
 
-          <div className="alert alert-info mt-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              className="stroke-current shrink-0 w-6 h-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
+          <div className="alert alert-info py-2 justify-center text-center">
             <span className="text-sm">
-              By trusting this user, you verify their identity. This helps build the web of trust.
+              Hiermit bestätige ich die Identität von {displayName} und füge sie in mein Netzwerk hinzu.
             </span>
           </div>
 
           <div className="modal-action">
             <button className="btn" onClick={handleClose}>
-              Cancel
+              Abbrechen
             </button>
             <button className="btn btn-primary" onClick={handleTrust}>
               <svg
@@ -217,7 +388,7 @@ export function QRScannerModal<TData = unknown>({
                   d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              Verify & Trust
+              Bestätigen
             </button>
           </div>
         </div>
@@ -237,19 +408,24 @@ export function QRScannerModal<TData = unknown>({
           ✕
         </button>
 
-        <h3 className="font-bold text-lg mb-4">Scan QR Code</h3>
+        <h3 className="font-bold text-xl mb-4 text-center">Freund hinzufügen</h3>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           {/* Scanner container */}
           <div className="relative bg-black rounded-lg overflow-hidden">
             <div id="qr-reader" className="w-full"></div>
           </div>
 
+          {/* Trust hint */}
+          <div className="alert alert-success py-2 justify-center text-center">
+            <span className="font-bold text-white">Scanne den QR-Code deines Freundes, um ihm zu vertrauen</span>
+          </div>
+
           {scanError && (
-            <div className="alert alert-error">
+            <div className="alert alert-error py-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="stroke-current shrink-0 h-6 w-6"
+                className="stroke-current shrink-0 h-5 w-5"
                 fill="none"
                 viewBox="0 0 24 24"
               >
@@ -263,10 +439,6 @@ export function QRScannerModal<TData = unknown>({
               <span>{scanError}</span>
             </div>
           )}
-
-          <div className="text-sm text-base-content/70 text-center">
-            Position the QR code within the frame to scan
-          </div>
         </div>
       </div>
       <div className="modal-backdrop" onClick={handleClose}></div>

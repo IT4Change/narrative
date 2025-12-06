@@ -35,6 +35,8 @@ interface TrustReciprocityModalProps<TData = unknown> {
   onShowToast?: (message: string) => void;
   /** Profiles loaded from trusted users' UserDocuments (for avatar/name) */
   trustedUserProfiles?: Record<string, TrustedUserProfile>;
+  /** User document URL for QR code generation */
+  userDocUrl?: string;
 }
 
 export function TrustReciprocityModal<TData = unknown>({
@@ -45,6 +47,7 @@ export function TrustReciprocityModal<TData = unknown>({
   onDecline,
   onShowToast,
   trustedUserProfiles = {},
+  userDocUrl,
 }: TrustReciprocityModalProps<TData>) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
@@ -257,6 +260,7 @@ export function TrustReciprocityModal<TData = unknown>({
         currentUserDid={currentUserDid}
         doc={doc}
         onTrustUser={handleTrustFromScanner}
+        userDocUrl={userDocUrl}
       />
     </div>
   );

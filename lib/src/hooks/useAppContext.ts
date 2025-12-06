@@ -275,6 +275,7 @@ export interface AppContextValue<TData = unknown> {
     hideWorkspaceSwitcher?: boolean;
     appTitle?: string;
     userDoc?: UserDocument | null;
+    userDocUrl?: string;
     trustedUserProfiles?: Record<string, TrustedUserProfile>;
   } | null;
 
@@ -1128,6 +1129,7 @@ export function useAppContext<TData = unknown>(
         hideWorkspaceSwitcher,
         appTitle,
         userDoc,
+        userDocUrl,
         trustedUserProfiles,
       }
     : null;
