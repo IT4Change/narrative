@@ -42,6 +42,14 @@ export function createViteConfig(options: AppViteConfigOptions = {}) {
 
     return {
       base,
+      resolve: {
+        alias: mode === 'development'
+          ? {
+              // In dev mode, use source files directly for HMR
+              'narrative-ui': path.resolve(monorepoRoot, 'lib/src/index.ts'),
+            }
+          : undefined,
+      },
       plugins: [
         react(),
         wasm(),
@@ -54,6 +62,7 @@ export function createViteConfig(options: AppViteConfigOptions = {}) {
       define: {
         // Make VITE_ prefixed env vars available
         'import.meta.env.VITE_SYNC_SERVER': JSON.stringify(env.VITE_SYNC_SERVER),
+        'import.meta.env.VITE_SYNC_SERVERS': JSON.stringify(env.VITE_SYNC_SERVERS),
       },
       optimizeDeps: {
         // Allow Vite to prebundle Automerge for proper WASM initialization order

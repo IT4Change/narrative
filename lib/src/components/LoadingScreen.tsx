@@ -73,8 +73,9 @@ export function DocumentLoadingScreen({
     if (attempt === 1) return 'Verbinde mit Sync-Server';
     if (attempt === 2) return 'Suche Dokument im Netzwerk';
     if (attempt === 3) return 'Warte auf Synchronisation';
-    if (attempt >= 4) return 'Noch einen Moment Geduld';
-    return 'Laden';
+    if (attempt <= 5) return 'Noch einen Moment Geduld';
+    if (attempt <= 8) return 'Verbindung wird aufgebaut';
+    return 'Letzter Versuch';
   };
 
   return (

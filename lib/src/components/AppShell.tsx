@@ -39,7 +39,7 @@ import { isValidAutomergeUrl } from '@automerge/automerge-repo';
 const DOC_LOAD_TIMEOUT = 8000;
 
 /** Max retry attempts for document loading */
-const MAX_RETRY_ATTEMPTS = 5;
+const MAX_RETRY_ATTEMPTS = 10;
 
 /** Delay between retries (ms) - exponential backoff starting point */
 const RETRY_DELAY_BASE = 2000;
@@ -410,7 +410,8 @@ export function AppShell<TDoc>({
 
       // All retries failed - keep showing loading screen with create option
       console.error('[AppShell] All retry attempts failed');
-      setRetryCount(MAX_RETRY_ATTEMPTS);
+      // Keep retryCount at last attempt (MAX_RETRY_ATTEMPTS - 1) so display shows correct number
+      setRetryCount(MAX_RETRY_ATTEMPTS - 1);
     } else {
       // No document to load - create new one
       const handle = repo.create(createEmptyDocument(identity));
@@ -431,6 +432,21 @@ export function AppShell<TDoc>({
     if (enableUserDocument) {
       clearUserDocId();
     }
+
+    // Remove profile parameter from URL before reload to avoid landing on deleted user's profile
+    const hash = window.location.hash;
+    if (hash.includes('profile=')) {
+      const newHash = hash
+        .replace(/&?profile=[^&]+/, '')
+        .replace(/^#&/, '#')
+        .replace(/&#/, '#');
+      if (newHash === '#' || newHash === '') {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      } else {
+        history.replaceState(null, '', window.location.pathname + window.location.search + newHash);
+      }
+    }
+
     window.location.reload();
   }, [enableUserDocument]);
 

@@ -610,7 +610,8 @@ export function UserProfileModal<TData = unknown>({
         {!isOwnProfile && !hideTrustActions && (
           <div className="flex flex-col gap-3">
             <div className="flex gap-3">
-              {!hasTrustGiven && (
+              {/* Only show verify button if user is "known" (trusts us or we have their profile) */}
+              {!hasTrustGiven && (hasTrustReceived || trustedProfile) && (
                 <button
                   className="btn btn-primary flex-1"
                   onClick={() => {
@@ -628,7 +629,13 @@ export function UserProfileModal<TData = unknown>({
                   Verifizieren
                 </button>
               )}
-              <button className={`btn btn-ghost ${hasTrustGiven ? 'flex-1' : ''}`} onClick={onClose}>
+              <button
+                className={`btn btn-ghost ${
+                  // Center button when alone (no verify button shown)
+                  hasTrustGiven || !hasTrustReceived ? 'flex-1' : ''
+                }`}
+                onClick={onClose}
+              >
                 Schließen
               </button>
             </div>
