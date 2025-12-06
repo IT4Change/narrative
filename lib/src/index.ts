@@ -144,3 +144,9 @@ export {
   updateDebugState,
   type NarrativeDebug,
 } from './utils/debug';
+
+// Time formatting utilities exports
+export {
+  formatRelativeTime,
+  formatFullDateTime,
+} from './utils/time';

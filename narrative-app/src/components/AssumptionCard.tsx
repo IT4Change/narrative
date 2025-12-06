@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import type { Assumption, Tag, Vote, VoteValue, VoteSummary, EditEntry, OpinionGraphDoc } from '../schema';
-import { verifyEntitySignature } from 'narrative-ui';
+import { verifyEntitySignature, formatRelativeTime } from 'narrative-ui';
 import { VoteBar } from './VoteBar';
 import { CreateAssumptionModal } from './CreateAssumptionModal';
 
@@ -72,24 +72,6 @@ export function AssumptionCard({
 }: AssumptionCardProps) {
   const [showLog, setShowLog] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-
-  const formatRelativeTime = (timestamp: number) => {
-    const diffSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-    if (diffSeconds < 30) return 'gerade eben';
-    if (diffSeconds < 90) return 'vor 1 Minute';
-    const diffMinutes = Math.floor(diffSeconds / 60);
-    if (diffMinutes < 60) return `vor ${diffMinutes} Minuten`;
-    const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return diffHours === 1 ? 'vor 1 Stunde' : `vor ${diffHours} Stunden`;
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return diffDays === 1 ? 'vor 1 Tag' : `vor ${diffDays} Tagen`;
-    const diffWeeks = Math.floor(diffDays / 7);
-    if (diffWeeks < 5) return diffWeeks === 1 ? 'vor 1 Woche' : `vor ${diffWeeks} Wochen`;
-    const diffMonths = Math.floor(diffDays / 30);
-    if (diffMonths < 12) return diffMonths === 1 ? 'vor 1 Monat' : `vor ${diffMonths} Monaten`;
-    const diffYears = Math.floor(diffDays / 365);
-    return diffYears === 1 ? 'vor 1 Jahr' : `vor ${diffYears} Jahren`;
-  };
 
   const handleVote = (value: VoteValue) => {
     onVote(assumption.id, value);

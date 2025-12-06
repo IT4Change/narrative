@@ -207,21 +207,21 @@ export function UserListItem({
                 </span>
               )}
               {hasIncomingTrust && incomingSignatureStatus === 'valid' && (
-                <span className="badge badge-ghost badge-xs gap-1" title="Ihre Signatur verifiziert">
+                <span className="badge badge-ghost badge-xs gap-1" title={`${displayName || getDefaultDisplayName(did)}s Signatur verifiziert`}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </span>
               )}
               {hasIncomingTrust && incomingSignatureStatus === 'invalid' && (
-                <span className="badge badge-error badge-xs gap-1" title="Ihre Signatur ungültig!">
+                <span className="badge badge-error badge-xs gap-1" title={`${displayName || getDefaultDisplayName(did)}s Signatur ungültig!`}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </span>
               )}
               {hasIncomingTrust && incomingSignatureStatus === 'missing' && (
-                <span className="badge badge-ghost badge-xs gap-1 opacity-50" title="Ihre Signatur fehlt (Legacy)">
+                <span className="badge badge-ghost badge-xs gap-1 opacity-50" title={`${displayName || getDefaultDisplayName(did)}s Signatur fehlt (Legacy)`}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
