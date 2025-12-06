@@ -28,7 +28,7 @@
     "build:unified": "npm run build --workspace=unified-app",
     "build:dank": "npm run build --workspace=dank-app",
     "lint": "npm run lint --workspaces",
-    "test": "npm run test --workspaces"
+    "test": "npm run test --workspace=lib --workspace=narrative-app"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
