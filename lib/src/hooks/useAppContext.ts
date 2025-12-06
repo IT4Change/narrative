@@ -353,10 +353,12 @@ export function useAppContext<TData = unknown>(
   useEffect(() => {
     updateDebugState({
       userDoc: userDoc ?? null,
+      userDocUrl: userDocUrl ?? null,
       doc: doc as BaseDocument<unknown> | null,
+      docUrl: documentId ? `automerge:${documentId}` : null,
       repo,
     });
-  }, [doc, userDoc, repo]);
+  }, [doc, userDoc, repo, userDocUrl, documentId]);
 
   // Register own identity in workspace identityLookup on join
   // Use a key to track last saved values and avoid infinite loops

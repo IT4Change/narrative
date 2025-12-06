@@ -27,7 +27,9 @@ declare global {
   interface Window {
     __narrative: NarrativeDebug;
     __userDoc: UserDocument | null;
+    __userDocUrl: string | null;
     __doc: BaseDocument<unknown> | null;
+    __docUrl: string | null;
     __identity: StoredIdentity | null;
   }
 }
@@ -64,13 +66,17 @@ export interface NarrativeDebug {
 /**
  * Pretty print user document to console
  */
-function printUserDocStructure(userDoc: UserDocument | null): void {
+function printUserDocStructure(userDoc: UserDocument | null, userDocUrl: string | null): void {
   if (!userDoc) {
     console.log('❌ No user document loaded. Set window.__userDoc first.');
     return;
   }
 
   console.group('👤 User Document');
+
+  if (userDocUrl) {
+    console.log('📎 Document URL:', userDocUrl);
+  }
 
   console.group('📋 Profile');
   console.log('DID:', userDoc.did);
@@ -290,10 +296,13 @@ export function initDebugTools(): void {
 
     // User Document
     userDoc: () => {
+      if (window.__userDocUrl) {
+        console.log('📎 User Document URL:', window.__userDocUrl);
+      }
       console.log('👤 User Document:', window.__userDoc);
       return window.__userDoc;
     },
-    printUserDoc: () => printUserDocStructure(window.__userDoc),
+    printUserDoc: () => printUserDocStructure(window.__userDoc, window.__userDocUrl),
     trustGiven: () => {
       const doc = window.__userDoc;
       if (doc) {
@@ -328,6 +337,9 @@ export function initDebugTools(): void {
 
     // Workspace Document
     doc: () => {
+      if (window.__docUrl) {
+        console.log('📎 Document URL:', window.__docUrl);
+      }
       console.log('📄 Workspace Document:', window.__doc);
       return window.__doc;
     },
@@ -335,6 +347,9 @@ export function initDebugTools(): void {
       const doc = window.__doc;
       if (doc) {
         console.group('📄 Workspace Document');
+        if (window.__docUrl) {
+          console.log('📎 Document URL:', window.__docUrl);
+        }
         console.log('Version:', doc.version);
         console.log('Last Modified:', new Date(doc.lastModified).toLocaleString());
         console.log('Identities:', Object.keys(doc.identities || {}).length);
@@ -362,7 +377,9 @@ export function initDebugTools(): void {
 
   // Initialize document holders
   window.__userDoc = null;
+  window.__userDocUrl = null;
   window.__doc = null;
+  window.__docUrl = null;
   window.__identity = loadSharedIdentity();
 
   // Log welcome message
@@ -375,7 +392,9 @@ export function initDebugTools(): void {
  */
 export function updateDebugState(options: {
   userDoc?: UserDocument | null;
+  userDocUrl?: string | null;
   doc?: BaseDocument<unknown> | null;
+  docUrl?: string | null;
   repo?: Repo;
 }): void {
   if (typeof window === 'undefined') return;
@@ -383,8 +402,14 @@ export function updateDebugState(options: {
   if (options.userDoc !== undefined) {
     window.__userDoc = options.userDoc;
   }
+  if (options.userDocUrl !== undefined) {
+    window.__userDocUrl = options.userDocUrl;
+  }
   if (options.doc !== undefined) {
     window.__doc = options.doc;
+  }
+  if (options.docUrl !== undefined) {
+    window.__docUrl = options.docUrl;
   }
   if (options.repo !== undefined) {
     _repo = options.repo;

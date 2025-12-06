@@ -134,16 +134,18 @@ export function AppShell<TDoc>({
   useEffect(() => {
     if (!userDocHandle) return;
 
+    const userDocUrl = userDocHandle.url;
+
     // Initial update
     const doc = userDocHandle.doc();
     if (doc) {
-      updateDebugState({ userDoc: doc });
+      updateDebugState({ userDoc: doc, userDocUrl });
     }
 
     // Subscribe to changes
     const onChange = () => {
       const updatedDoc = userDocHandle.doc();
-      updateDebugState({ userDoc: updatedDoc });
+      updateDebugState({ userDoc: updatedDoc, userDocUrl });
     };
 
     userDocHandle.on('change', onChange);
