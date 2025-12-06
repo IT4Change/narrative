@@ -6,6 +6,7 @@
  */
 
 import { UserAvatar } from './UserAvatar';
+import { getDefaultDisplayName } from '../utils/did';
 import type { TrustAttestation } from '../schema/identity';
 
 type SignatureStatus = 'valid' | 'invalid' | 'missing' | 'pending';
@@ -129,7 +130,7 @@ export function UserListItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <div className={`font-semibold truncate ${compact ? 'text-sm' : ''}`}>
-            {displayName || 'Anonymous'}
+            {displayName || getDefaultDisplayName(did)}
           </div>
           {isCurrentUser && (
             <span className={`badge badge-primary ${compact ? 'badge-xs' : 'badge-sm'}`}>Du</span>

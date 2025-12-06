@@ -210,7 +210,10 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
 
       {/* Standard Modals - all from context */}
       {ctx.trustReciprocityModalProps && (
-        <TrustReciprocityModal {...ctx.trustReciprocityModalProps} />
+        <TrustReciprocityModal
+          {...ctx.trustReciprocityModalProps}
+          trustedUserProfiles={ctx.trustedUserProfiles}
+        />
       )}
       {ctx.toastProps && <Toast {...ctx.toastProps} />}
       <NewWorkspaceModal {...ctx.newWorkspaceModalProps} />
@@ -230,6 +233,7 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
           userDocUrl={userDocUrl}
           customActions={profileActions?.(profileDid, closeProfile) ?? []}
           hideTrustActions={hideProfileTrustActions}
+          trustedUserProfiles={ctx.trustedUserProfiles}
         />
       )}
     </div>

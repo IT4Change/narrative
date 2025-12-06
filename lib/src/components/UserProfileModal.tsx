@@ -3,7 +3,8 @@ import { UserAvatar } from './UserAvatar';
 import { QRCodeSVG } from 'qrcode.react';
 import type { BaseDocument } from '../schema/document';
 import type { TrustAttestation } from '../schema/identity';
-import { extractPublicKeyFromDid, base64Encode } from '../utils/did';
+import type { TrustedUserProfile } from '../hooks/useAppContext';
+import { extractPublicKeyFromDid, base64Encode, getDefaultDisplayName } from '../utils/did';
 import { verifyEntitySignature } from '../utils/signature';
 
 type SignatureStatus = 'valid' | 'invalid' | 'missing' | 'pending';
@@ -51,6 +52,8 @@ interface UserProfileModalProps<TData = unknown> {
   customActions?: ProfileAction[];
   /** Hide the default trust actions */
   hideTrustActions?: boolean;
+  /** Profiles loaded from trusted users' UserDocuments (for avatar/name) */
+  trustedUserProfiles?: Record<string, TrustedUserProfile>;
 }
 
 /**
@@ -82,13 +85,17 @@ export function UserProfileModal<TData = unknown>({
   userDocUrl,
   customActions = [],
   hideTrustActions = false,
+  trustedUserProfiles = {},
 }: UserProfileModalProps<TData>) {
   const [trustGivenStatus, setTrustGivenStatus] = useState<SignatureStatus>('pending');
   const [trustReceivedStatus, setTrustReceivedStatus] = useState<SignatureStatus>('pending');
 
   const isOwnProfile = currentUserDid === did;
-  const profile = doc.identities?.[did];
-  const displayName = profile?.displayName || 'Anonymous User';
+  const workspaceProfile = doc.identities?.[did];
+  const trustedProfile = trustedUserProfiles[did];
+  // Prefer profile from trusted user's UserDoc, fallback to workspace identity, fallback to DID-based name
+  const displayName = trustedProfile?.displayName || workspaceProfile?.displayName || getDefaultDisplayName(did);
+  const avatarUrl = trustedProfile?.avatarUrl || workspaceProfile?.avatarUrl;
 
   // Determine trust relationship
   const hasTrustGiven = !!trustGiven;
@@ -182,7 +189,7 @@ export function UserProfileModal<TData = unknown>({
             <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-primary ring-offset-2 ring-offset-base-100">
               <UserAvatar
                 did={did}
-                avatarUrl={profile?.avatarUrl}
+                avatarUrl={avatarUrl}
                 size={96}
               />
             </div>

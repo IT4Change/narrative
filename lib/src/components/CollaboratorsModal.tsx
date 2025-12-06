@@ -14,8 +14,9 @@ import { QRScannerModal } from './QRScannerModal';
 import type { BaseDocument } from '../schema/document';
 import type { UserDocument } from '../schema/userDocument';
 import type { TrustAttestation } from '../schema/identity';
+import type { TrustedUserProfile } from '../hooks/useAppContext';
 import { verifyEntitySignature } from '../utils/signature';
-import { extractPublicKeyFromDid, base64Encode } from '../utils/did';
+import { extractPublicKeyFromDid, base64Encode, getDefaultDisplayName } from '../utils/did';
 
 type SignatureStatus = 'valid' | 'invalid' | 'missing' | 'pending';
 
@@ -56,6 +57,11 @@ interface CollaboratorsModalProps<TData = unknown> {
   onUserClick: (did: string) => void;
   /** User document for trust information */
   userDoc?: UserDocument | null;
+  /**
+   * Profiles loaded from trusted users' UserDocuments (optional)
+   * Used as primary source for avatar/name of verified friends
+   */
+  trustedUserProfiles?: Record<string, TrustedUserProfile>;
 }
 
 export function CollaboratorsModal<TData = unknown>({
@@ -68,6 +74,7 @@ export function CollaboratorsModal<TData = unknown>({
   onTrustUser,
   onUserClick,
   userDoc,
+  trustedUserProfiles = {},
 }: CollaboratorsModalProps<TData>) {
   const [showScanner, setShowScanner] = useState(false);
 
@@ -118,15 +125,17 @@ export function CollaboratorsModal<TData = unknown>({
   }
 
   // Convert to array and build user data
+  // Priority: trustedUserProfiles > doc.identities > doc.identityLookup > default name
   const collaborators = Array.from(allDids)
     .filter(did => did !== currentUserDid) // Exclude self
     .map(did => {
-      const profile = doc.identities[did];
+      const trustedProfile = trustedUserProfiles[did];
+      const workspaceProfile = doc.identities[did];
       const lookupProfile = doc.identityLookup?.[did];
       return {
         did,
-        displayName: profile?.displayName || lookupProfile?.displayName,
-        avatarUrl: profile?.avatarUrl || lookupProfile?.avatarUrl,
+        displayName: trustedProfile?.displayName || workspaceProfile?.displayName || lookupProfile?.displayName || getDefaultDisplayName(did),
+        avatarUrl: trustedProfile?.avatarUrl || workspaceProfile?.avatarUrl || lookupProfile?.avatarUrl,
         outgoingTrust: userDoc?.trustGiven?.[did],
         incomingTrust: userDoc?.trustReceived?.[did],
       };

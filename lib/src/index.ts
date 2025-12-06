@@ -98,6 +98,7 @@ export {
   isValidDid,
   base64Encode,
   base64Decode,
+  getDefaultDisplayName,
   type Keypair,
   type DidIdentity,
 } from './utils/did';

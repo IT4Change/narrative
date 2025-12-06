@@ -16,7 +16,7 @@
  * Trust attestations are stored in the personal UserDocument, not workspace documents.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { DocHandle, AutomergeUrl, Repo } from '@automerge/automerge-repo';
 import { useProfileUrl } from './useProfileUrl';
 import {
@@ -310,6 +310,13 @@ export function useAppContext<TData = unknown>(
   // Trusted user profiles (loaded from their UserDocs)
   const [trustedUserProfiles, setTrustedUserProfiles] = useState<Record<string, TrustedUserProfile>>({});
 
+  // Subscription tracking for trusted user profiles
+  // Maps userDocUrl -> { handle, handler } for cleanup via handle.off()
+  const profileSubscriptionsRef = useRef<Map<string, {
+    handle: DocHandle<UserDocument>;
+    handler: (payload: { doc: UserDocument }) => void;
+  }>>(new Map());
+
   // URL-based profile support
   const { openProfile } = useProfileUrl();
 
@@ -357,8 +364,9 @@ export function useAppContext<TData = unknown>(
       doc: doc as BaseDocument<unknown> | null,
       docUrl: documentId ? `automerge:${documentId}` : null,
       repo,
+      trustedUserProfiles,
     });
-  }, [doc, userDoc, repo, userDocUrl, documentId]);
+  }, [doc, userDoc, repo, userDocUrl, documentId, trustedUserProfiles]);
 
   // Register own identity in workspace identityLookup on join
   // Use a key to track last saved values and avoid infinite loops
@@ -469,7 +477,7 @@ export function useAppContext<TData = unknown>(
 
   // Load profiles from trusted users' UserDocuments
   // This provides up-to-date avatars and display names for verified friends
-  // We use a ref to track the last loaded URLs to avoid infinite loops
+  // Uses subscriptions to react to remote profile changes in real-time
   const [lastLoadedUrlsKey, setLastLoadedUrlsKey] = useState('');
 
   useEffect(() => {
@@ -508,40 +516,104 @@ export function useAppContext<TData = unknown>(
       return;
     }
 
+    // Cleanup removed subscriptions (trust relationships that no longer exist)
+    const currentUrls = new Set(userDocUrls.values());
+    for (const [url, subscription] of profileSubscriptionsRef.current.entries()) {
+      if (!currentUrls.has(url)) {
+        subscription.handle.off('change', subscription.handler);
+        profileSubscriptionsRef.current.delete(url);
+      }
+    }
+
     if (userDocUrls.size === 0) {
       setTrustedUserProfiles({});
       setLastLoadedUrlsKey(currentUrlsKey);
       return;
     }
 
-    // Load each trusted user's UserDoc and extract profile
-    const loadProfiles = async () => {
-      const profiles: Record<string, TrustedUserProfile> = {};
+    // Helper to update a single profile in state
+    const updateProfile = (did: string, profile: Omit<TrustedUserProfile, 'did'>) => {
+      setTrustedUserProfiles((prev) => ({
+        ...prev,
+        [did]: { did, ...profile },
+      }));
+    };
 
-      for (const [did, userDocUrl] of userDocUrls) {
+    // Load all trusted users' UserDocs in parallel and subscribe to changes
+    const loadProfilesWithSubscriptions = async () => {
+      const loadPromises = Array.from(userDocUrls.entries()).map(async ([did, docUrl]) => {
+        // Skip if already subscribed to this URL
+        if (profileSubscriptionsRef.current.has(docUrl)) {
+          return null;
+        }
+
         try {
-          const handle = await repo.find<UserDocument>(userDocUrl as AutomergeUrl);
+          const handle = await repo.find<UserDocument>(docUrl as AutomergeUrl);
           const trustedUserDoc = handle.doc();
 
           if (trustedUserDoc) {
-            profiles[did] = {
+            // Initial profile load
+            const profile: TrustedUserProfile = {
               did,
               displayName: trustedUserDoc.profile?.displayName,
               avatarUrl: trustedUserDoc.profile?.avatarUrl,
-              userDocUrl,
+              userDocUrl: docUrl,
               fetchedAt: Date.now(),
             };
+
+            // Subscribe to changes on this document
+            const changeHandler = ({ doc: changedDoc }: { doc: UserDocument }) => {
+              if (changedDoc) {
+                updateProfile(did, {
+                  displayName: changedDoc.profile?.displayName,
+                  avatarUrl: changedDoc.profile?.avatarUrl,
+                  userDocUrl: docUrl,
+                  fetchedAt: Date.now(),
+                });
+              }
+            };
+            handle.on('change', changeHandler);
+
+            // Store subscription for cleanup
+            profileSubscriptionsRef.current.set(docUrl, { handle, handler: changeHandler });
+
+            return { did, profile };
           }
+          return null;
         } catch (err) {
           console.warn(`Failed to load UserDoc for ${did}:`, err);
+          return null;
+        }
+      });
+
+      // Wait for all loads to complete
+      const results = await Promise.all(loadPromises);
+
+      // Build initial profiles state from successful loads
+      const profiles: Record<string, TrustedUserProfile> = {};
+      for (const result of results) {
+        if (result) {
+          profiles[result.did] = result.profile;
         }
       }
 
-      setTrustedUserProfiles(profiles);
+      // Merge with existing profiles (preserving subscribed ones)
+      setTrustedUserProfiles((prev) => ({
+        ...prev,
+        ...profiles,
+      }));
       setLastLoadedUrlsKey(currentUrlsKey);
     };
 
-    loadProfiles();
+    loadProfilesWithSubscriptions();
+
+    // Cleanup all subscriptions on unmount
+    return () => {
+      for (const subscription of profileSubscriptionsRef.current.values()) {
+        subscription.handle.off('change', subscription.handler);
+      }
+      profileSubscriptionsRef.current.clear();
+    };
   }); // No dependencies - we check manually with lastLoadedUrlsKey
 
   // Current workspace info

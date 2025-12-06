@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import type { BaseDocument } from '../schema/document';
 import type { TrustAttestation } from '../schema/identity';
+import type { TrustedUserProfile } from '../hooks/useAppContext';
 import { UserAvatar } from './UserAvatar';
 import { QRScannerModal } from './QRScannerModal';
+import { getDefaultDisplayName } from '../utils/did';
 
 interface TrustReciprocityModalProps<TData = unknown> {
   pendingAttestations: TrustAttestation[];
@@ -12,6 +14,8 @@ interface TrustReciprocityModalProps<TData = unknown> {
   onTrustUser: (trusteeDid: string, trusteeUserDocUrl?: string) => void;
   onDecline: (attestationId: string) => void;
   onShowToast?: (message: string) => void;
+  /** Profiles loaded from trusted users' UserDocuments (for avatar/name) */
+  trustedUserProfiles?: Record<string, TrustedUserProfile>;
 }
 
 export function TrustReciprocityModal<TData = unknown>({
@@ -21,6 +25,7 @@ export function TrustReciprocityModal<TData = unknown>({
   onTrustUser,
   onDecline,
   onShowToast,
+  trustedUserProfiles = {},
 }: TrustReciprocityModalProps<TData>) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
@@ -40,8 +45,11 @@ export function TrustReciprocityModal<TData = unknown>({
 
   const currentAttestation = pendingAttestations[currentIndex];
   const trusterDid = currentAttestation.trusterDid;
-  const profile = doc.identities[trusterDid];
-  const displayName = profile?.displayName || 'Anonymous User';
+  const workspaceProfile = doc.identities[trusterDid];
+  const trustedProfile = trustedUserProfiles[trusterDid];
+  // Prefer profile from trusted user's UserDoc, fallback to workspace identity, fallback to DID-based name
+  const displayName = trustedProfile?.displayName || workspaceProfile?.displayName || getDefaultDisplayName(trusterDid);
+  const avatarUrl = trustedProfile?.avatarUrl || workspaceProfile?.avatarUrl;
 
   const handleOpenScanner = () => {
     setShowScanner(true);
@@ -88,7 +96,7 @@ export function TrustReciprocityModal<TData = unknown>({
           <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-primary ring-offset-2 ring-offset-base-100">
             <UserAvatar
               did={trusterDid}
-              avatarUrl={profile?.avatarUrl}
+              avatarUrl={avatarUrl}
               size={80}
             />
           </div>

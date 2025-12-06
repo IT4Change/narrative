@@ -8,6 +8,7 @@ import {
   base64Encode,
   base64Decode,
   isValidDid,
+  getDefaultDisplayName,
 } from './did';
 
 describe('generateKeypair', () => {
@@ -268,5 +269,49 @@ describe('isValidDid', () => {
     // Truncated DID should fail
     const truncatedDid = validDid.slice(0, -5);
     expect(isValidDid(truncatedDid)).toBe(false);
+  });
+});
+
+describe('getDefaultDisplayName', () => {
+  it('should generate User-{suffix} from DID', () => {
+    const did = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+    const displayName = getDefaultDisplayName(did);
+
+    // Last 6 characters of the DID
+    expect(displayName).toBe('User-sdvktH');
+  });
+
+  it('should use last 6 characters of DID', () => {
+    const did = 'did:key:z6MkABC123';
+    const displayName = getDefaultDisplayName(did);
+
+    expect(displayName).toBe('User-ABC123');
+  });
+
+  it('should return "User" for empty DID', () => {
+    expect(getDefaultDisplayName('')).toBe('User');
+  });
+
+  it('should handle short DIDs gracefully', () => {
+    const shortDid = 'abc';
+    const displayName = getDefaultDisplayName(shortDid);
+
+    // Should still work, just with shorter suffix
+    expect(displayName).toBe('User-abc');
+  });
+
+  it('should generate consistent names for same DID', () => {
+    const did = 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH';
+
+    expect(getDefaultDisplayName(did)).toBe(getDefaultDisplayName(did));
+  });
+
+  it('should generate different names for different DIDs', async () => {
+    const keypair1 = await generateKeypair();
+    const keypair2 = await generateKeypair();
+    const did1 = deriveDidFromPublicKey(keypair1.publicKey);
+    const did2 = deriveDidFromPublicKey(keypair2.publicKey);
+
+    expect(getDefaultDisplayName(did1)).not.toBe(getDefaultDisplayName(did2));
   });
 });

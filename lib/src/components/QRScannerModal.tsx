@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import type { BaseDocument } from '../schema/document';
 import { UserAvatar } from './UserAvatar';
+import { getDefaultDisplayName } from '../utils/did';
 
 interface QRScannerModalProps<TData = unknown> {
   isOpen: boolean;
@@ -148,7 +149,7 @@ export function QRScannerModal<TData = unknown>({
   // Show confirmation dialog after successful scan
   if (scannedDid) {
     const profile = doc.identities[scannedDid];
-    const displayName = profile?.displayName || 'Anonymous User';
+    const displayName = profile?.displayName || getDefaultDisplayName(scannedDid);
 
     return (
       <div className="modal modal-open z-[9999]">

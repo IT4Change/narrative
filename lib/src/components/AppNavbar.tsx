@@ -396,6 +396,7 @@ export function AppNavbar<TData = unknown>({
           openProfile(did);
         }}
         userDoc={userDoc}
+        trustedUserProfiles={trustedUserProfiles}
       />
 
       <QRScannerModal

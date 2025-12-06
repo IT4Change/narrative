@@ -18,9 +18,13 @@ import type { UserDocument } from '../schema/userDocument';
 import type { BaseDocument } from '../schema/document';
 import { loadSharedIdentity, type StoredIdentity } from './storage';
 import type { Repo, AutomergeUrl } from '@automerge/automerge-repo';
+import type { TrustedUserProfile } from '../hooks/useAppContext';
 
 // Internal repo reference for loading arbitrary documents
 let _repo: Repo | null = null;
+
+// Internal trusted user profiles reference
+let _trustedUserProfiles: Record<string, TrustedUserProfile> = {};
 
 // Type declarations for window object
 declare global {
@@ -45,6 +49,9 @@ export interface NarrativeDebug {
   trustGiven: () => void;
   trustReceived: () => void;
   workspaces: () => void;
+
+  // Trusted User Profiles
+  trustedProfiles: () => void;
 
   // Workspace Document
   doc: () => BaseDocument<unknown> | null;
@@ -249,6 +256,7 @@ function printHelp(): void {
   __narrative.trustGiven()     - Show outgoing trust
   __narrative.trustReceived()  - Show incoming trust
   __narrative.workspaces()     - Show workspaces
+  __narrative.trustedProfiles() - Show loaded profiles from trusted users
   __narrative.exportUserDoc()  - Export user doc to JSON
 
 📌 Workspace Document:
@@ -327,6 +335,46 @@ export function initDebugTools(): void {
         console.log('❌ No user document');
       }
     },
+
+    // Trusted User Profiles
+    trustedProfiles: () => {
+      const profiles = _trustedUserProfiles;
+      const count = Object.keys(profiles).length;
+
+      console.group(`👥 Trusted User Profiles (${count})`);
+
+      if (count === 0) {
+        console.log('No trusted user profiles loaded.');
+        console.log('💡 Profiles are loaded from users who have trusted you (trustReceived).');
+      } else {
+        console.table(
+          Object.values(profiles).map((p) => ({
+            did: p.did.substring(0, 35) + '...',
+            displayName: p.displayName || '(no name)',
+            hasAvatar: p.avatarUrl ? '✅' : '❌',
+            userDocUrl: p.userDocUrl ? p.userDocUrl.substring(0, 30) + '...' : '(none)',
+            fetchedAt: new Date(p.fetchedAt).toLocaleString(),
+          }))
+        );
+
+        // Show full details
+        console.log('\n📋 Full profile data:');
+        for (const profile of Object.values(profiles)) {
+          console.log(`  ${profile.displayName || profile.did.substring(0, 20)}:`);
+          console.log(`    DID: ${profile.did}`);
+          if (profile.avatarUrl) {
+            console.log(`    Avatar: ${profile.avatarUrl.substring(0, 60)}...`);
+          }
+          if (profile.userDocUrl) {
+            console.log(`    UserDoc: ${profile.userDocUrl}`);
+          }
+        }
+      }
+
+      console.groupEnd();
+      return profiles;
+    },
+
     exportUserDoc: () => {
       if (window.__userDoc) {
         exportToJson(window.__userDoc, `narrative-userdoc-${Date.now()}.json`);
@@ -396,6 +444,7 @@ export function updateDebugState(options: {
   doc?: BaseDocument<unknown> | null;
   docUrl?: string | null;
   repo?: Repo;
+  trustedUserProfiles?: Record<string, TrustedUserProfile>;
 }): void {
   if (typeof window === 'undefined') return;
 
@@ -413,6 +462,9 @@ export function updateDebugState(options: {
   }
   if (options.repo !== undefined) {
     _repo = options.repo;
+  }
+  if (options.trustedUserProfiles !== undefined) {
+    _trustedUserProfiles = options.trustedUserProfiles;
   }
   window.__identity = loadSharedIdentity();
 }

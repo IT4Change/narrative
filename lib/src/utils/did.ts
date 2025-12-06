@@ -169,3 +169,15 @@ export function isValidDid(did: string): boolean {
     return false;
   }
 }
+
+/**
+ * Generate a short display name from a DID
+ * Format: "User-{6chars}" from the end of the DID
+ * Example: did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH -> "User-dvktH"
+ */
+export function getDefaultDisplayName(did: string): string {
+  if (!did) return 'User';
+  // Extract last 6 characters from the DID (excluding any trailing chars that might be special)
+  const suffix = did.slice(-6);
+  return `User-${suffix}`;
+}
