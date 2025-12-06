@@ -186,42 +186,42 @@ export function UserListItem({
           {showTrustBadges && !isCurrentUser && (
             <>
               {hasOutgoingTrust && outgoingSignatureStatus === 'valid' && (
-                <span className="badge badge-ghost badge-xs gap-1" title="Deine Signatur verifiziert">
+                <span className="tooltip tooltip-top badge badge-ghost badge-xs gap-1" data-tip="Deine Signatur verifiziert">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 </span>
               )}
               {hasOutgoingTrust && outgoingSignatureStatus === 'invalid' && (
-                <span className="badge badge-error badge-xs gap-1" title="Deine Signatur ungültig!">
+                <span className="tooltip tooltip-top badge badge-error badge-xs gap-1" data-tip="Deine Signatur ungültig!">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </span>
               )}
               {hasOutgoingTrust && outgoingSignatureStatus === 'missing' && (
-                <span className="badge badge-ghost badge-xs gap-1 opacity-50" title="Deine Signatur fehlt (Legacy)">
+                <span className="tooltip tooltip-top badge badge-ghost badge-xs gap-1 opacity-50" data-tip="Deine Signatur fehlt (Legacy)">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </span>
               )}
               {hasIncomingTrust && incomingSignatureStatus === 'valid' && (
-                <span className="badge badge-ghost badge-xs gap-1" title={`${displayName || getDefaultDisplayName(did)}s Signatur verifiziert`}>
+                <span className="tooltip tooltip-top badge badge-ghost badge-xs gap-1" data-tip={`${displayName || getDefaultDisplayName(did)}s Signatur verifiziert`}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </span>
               )}
               {hasIncomingTrust && incomingSignatureStatus === 'invalid' && (
-                <span className="badge badge-error badge-xs gap-1" title={`${displayName || getDefaultDisplayName(did)}s Signatur ungültig!`}>
+                <span className="tooltip tooltip-top badge badge-error badge-xs gap-1" data-tip={`${displayName || getDefaultDisplayName(did)}s Signatur ungültig!`}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </span>
               )}
               {hasIncomingTrust && incomingSignatureStatus === 'missing' && (
-                <span className="badge badge-ghost badge-xs gap-1 opacity-50" title={`${displayName || getDefaultDisplayName(did)}s Signatur fehlt (Legacy)`}>
+                <span className="tooltip tooltip-top badge badge-ghost badge-xs gap-1 opacity-50" data-tip={`${displayName || getDefaultDisplayName(did)}s Signatur fehlt (Legacy)`}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>

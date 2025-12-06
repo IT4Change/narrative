@@ -506,35 +506,55 @@ export function TrustManager({ targetDid }: Props) {
 
 ## Part 8: Implementation Phases
 
-### Phase 1: Foundation ✅ (Current)
+### Phase 1: Foundation ✅
+
 - ✅ Real DIDs with Ed25519 keypairs
 - ✅ Schema with signature fields
 - ✅ Basic identity management
 
-### Phase 2: Signatures (Next)
-- Add JWS signatures to all entities
-- Verify signatures in UI (green checkmark)
-- Foundation for tamper-proof attestations
+### Phase 2: Signatures ✅
 
-### Phase 3: Trust Schema
-- Add `TrustAttestation` entity to schema
-- Add `trustedDids`/`blockedDids` to `IdentityProfile`
-- CRUD operations for trust relationships
+- ✅ JWS signatures for trust attestations
+- ✅ Signature verification in UI (green shield icon)
+- ✅ Tamper-proof attestations
 
-### Phase 4: Trust Calculation
-- Implement `calculateTrustLevel()` function
-- Implement BFS for transitive trust
-- Add trust indicators to UI
+### Phase 3: Trust Schema ✅
 
-### Phase 5: Voting Integration
-- Filter votes by trust level
-- Show trust-filtered vote summaries
-- UI toggle for trust filters
+- ✅ `TrustAttestation` entity in schema (`lib/src/schema/identity.ts`)
+- ✅ User Document with `trustGiven`/`trustReceived` maps (`lib/src/schema/userDocument.ts`)
+- ✅ CRUD operations for trust relationships (`useAppContext` hook)
 
-### Phase 6: Trust Management UI
-- Trust management modal
-- Attestation creation flow
-- Trust graph visualization
+### Phase 4: Trust Visualization ✅
+
+- ✅ Trust indicators on user avatars (checkmark badges)
+- ✅ Signature status badges (valid/invalid/missing)
+- ✅ Trust status in profile modals
+- ✅ Collaborators/Vertrauensnetzwerk modal
+
+### Phase 5: In-Person Verification ✅
+
+- ✅ QR code generation with DID + userDocUrl
+- ✅ QR scanner for verification
+- ✅ Bidirectional trust sync via userDocUrl
+
+### Phase 6: Security Features ✅
+
+- ✅ Real-time signature validation on trustReceived changes
+- ✅ Automatic cleanup of invalid attestations
+- ✅ Bidirectional revocation sync
+
+### Phase 7: Trust Management UI ✅
+
+- ✅ Profile modal with trust actions
+- ✅ Reciprocity modal for pending trust requests
+- ✅ Signature badges everywhere trust is displayed
+
+### Remaining (Future)
+
+- ⏳ Transitive trust calculation (friend-of-friend)
+- ⏳ Filter votes by trust level
+- ⏳ Trust graph visualization
+- ⏳ Trust depth settings
 
 ---
 
@@ -695,33 +715,93 @@ function getVoteSummaryByTrust(
 
 ---
 
-## Part 12: Next Steps
+## Part 12: Current Implementation Details
 
-1. **Complete Phase 2** (Signatures)
-   - Implement JWS signing/verification
-   - Add green checkmarks for verified actions
+### Key Files
 
-2. **Implement Phase 3** (Trust Schema)
-   - Add `TrustAttestation` to schema
-   - Create CRUD operations
-   - Update `createEmptyDoc()`
+| File | Purpose |
+|------|---------|
+| `lib/src/schema/identity.ts` | `TrustAttestation` interface |
+| `lib/src/schema/userDocument.ts` | `UserDocument` with `trustGiven`/`trustReceived` |
+| `lib/src/hooks/useAppContext.ts` | Trust operations, signature validation |
+| `lib/src/components/UserProfileModal.tsx` | Profile with trust status + QR code |
+| `lib/src/components/QRScannerModal.tsx` | QR scanner for verification |
+| `lib/src/components/TrustReciprocityModal.tsx` | Pending trust requests |
+| `lib/src/components/UserListItem.tsx` | User list with trust badges |
+| `lib/src/components/CollaboratorsModal.tsx` | Trust network view |
+| `lib/src/utils/signature.ts` | JWS signing/verification |
 
-3. **Implement Phase 4** (Trust Calculation)
-   - Write `calculateTrustLevel()` function
-   - Write BFS for transitive trust
-   - Add unit tests
+### Trust Flow
 
-4. **Implement Phase 5** (Voting Integration)
+1. **Creating Trust (QR Verification)**
+
+   ```text
+   User A shows QR → User B scans → B trusts A
+   QR contains: narrative://verify/{did}?userDoc={url}
+   ```
+
+2. **Bidirectional Trust Sync**
+
+   ```text
+   When B trusts A:
+   1. B writes to B.userDoc.trustGiven[A.did] (signed by B)
+   2. B writes to A.userDoc.trustReceived[B.did] (signed by B)
+   ```
+
+3. **Signature Validation**
+
+   ```text
+   On every trustReceived change:
+   1. Verify signature against trusterDid's public key
+   2. Delete invalid entries automatically
+   ```
+
+4. **Trust Revocation**
+
+   ```text
+   When B revokes trust of A:
+   1. B removes B.userDoc.trustGiven[A.did]
+   2. B removes A.userDoc.trustReceived[B.did]
+   ```
+
+### Signature Status Types
+
+| Status | Icon | Meaning |
+|--------|------|---------|
+| `valid` | 🛡️ (green) | Signature verified successfully |
+| `invalid` | ⚠️ (red) | Signature verification failed - possibly forged! |
+| `missing` | ❓ (gray) | No signature (legacy attestation) |
+| `pending` | ⏳ (spinner) | Verification in progress |
+
+### Security Model
+
+- **Anyone can write** to any Automerge document (CRDT limitation)
+- **Protection via signatures**: Invalid signatures are ignored/deleted at read time
+- **Continuous validation**: `trustReceived` is validated on every change, not just on load
+- **Automatic cleanup**: Invalid attestations are silently removed
+
+---
+
+## Part 13: Next Steps
+
+1. **Transitive Trust** (Future)
+   - Implement `calculateTrustLevel()` with BFS
+   - Add friend-of-friend trust indicators
+   - Trust depth configuration
+
+2. **Voting Integration** (Future)
    - Filter votes by trust level
-   - Update VoteBar component
-   - Add trust filter toggle
+   - Show trust-filtered vote summaries
+   - UI toggle for trust filters
 
-5. **Implement Phase 6** (Trust Management UI)
-   - Create TrustManager component
-   - Add attestation creation flow
-   - Add trust indicators throughout UI
+3. **Trust Graph Visualization** (Future)
+   - Visual representation of trust network
+   - Path visualization between users
 
-**Estimated Total Time**: 8-12 hours
+4. **Tests**
+   - Unit tests for signature verification
+   - Integration tests for trust flow
+   - E2E tests for QR scanning
 
 ---
 

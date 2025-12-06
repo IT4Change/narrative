@@ -4,7 +4,26 @@ import type { TrustAttestation } from '../schema/identity';
 import type { TrustedUserProfile } from '../hooks/useAppContext';
 import { UserAvatar } from './UserAvatar';
 import { QRScannerModal } from './QRScannerModal';
-import { getDefaultDisplayName } from '../utils/did';
+import { getDefaultDisplayName, extractPublicKeyFromDid, base64Encode } from '../utils/did';
+import { verifyEntitySignature } from '../utils/signature';
+
+type SignatureStatus = 'valid' | 'invalid' | 'missing' | 'pending';
+
+/**
+ * Verify an attestation's signature
+ */
+async function verifyAttestationSignature(attestation: TrustAttestation): Promise<SignatureStatus> {
+  if (!attestation.signature) return 'missing';
+
+  try {
+    const publicKeyBytes = extractPublicKeyFromDid(attestation.trusterDid);
+    const publicKeyBase64 = base64Encode(publicKeyBytes);
+    const result = await verifyEntitySignature(attestation as unknown as Record<string, unknown>, publicKeyBase64);
+    return result.valid ? 'valid' : 'invalid';
+  } catch {
+    return 'invalid';
+  }
+}
 
 interface TrustReciprocityModalProps<TData = unknown> {
   pendingAttestations: TrustAttestation[];
@@ -29,6 +48,7 @@ export function TrustReciprocityModal<TData = unknown>({
 }: TrustReciprocityModalProps<TData>) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
+  const [signatureStatus, setSignatureStatus] = useState<SignatureStatus>('pending');
 
   // Reset index when pending attestations change
   useEffect(() => {
@@ -38,6 +58,42 @@ export function TrustReciprocityModal<TData = unknown>({
       setCurrentIndex(0);
     }
   }, [pendingAttestations, currentIndex]);
+
+  // Verify signature of current attestation
+  useEffect(() => {
+    if (pendingAttestations.length === 0 || currentIndex >= pendingAttestations.length) {
+      return;
+    }
+    setSignatureStatus('pending');
+    verifyAttestationSignature(pendingAttestations[currentIndex]).then(setSignatureStatus);
+  }, [pendingAttestations, currentIndex]);
+
+  // Render signature status icon
+  const renderSignatureIcon = (status: SignatureStatus) => {
+    if (status === 'pending') {
+      return <span className="loading loading-spinner loading-xs"></span>;
+    }
+    if (status === 'valid') {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      );
+    }
+    if (status === 'invalid') {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      );
+    }
+    // missing
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+  };
 
   if (pendingAttestations.length === 0 || currentIndex >= pendingAttestations.length) {
     return null;
@@ -101,32 +157,67 @@ export function TrustReciprocityModal<TData = unknown>({
             />
           </div>
           <div className="text-center">
-            <div className="font-bold text-lg">{displayName}</div>
+            <div className="flex items-center justify-center gap-2">
+              <div className="font-bold text-lg">{displayName}</div>
+              <span
+                className="tooltip tooltip-top"
+                data-tip={
+                  signatureStatus === 'valid' ? `${displayName}s Signatur verifiziert` :
+                  signatureStatus === 'invalid' ? `${displayName}s Signatur ungültig!` :
+                  signatureStatus === 'missing' ? `${displayName}s Signatur fehlt (Legacy)` :
+                  `${displayName}s Signatur wird geprüft...`
+                }
+              >
+                {renderSignatureIcon(signatureStatus)}
+              </span>
+            </div>
             <div className="text-xs text-base-content/50 break-all mt-2">
               {trusterDid}
             </div>
           </div>
         </div>
 
-        <div className="alert alert-info mb-4">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            className="stroke-current shrink-0 w-6 h-6"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
-          </svg>
-          <span className="text-sm">
-            <strong>{displayName}</strong> hat deine Identität verifiziert.
-            Um zurück zu vertrauen, scanne den QR-Code von {displayName}.
-          </span>
-        </div>
+        {signatureStatus === 'invalid' ? (
+          <div className="alert alert-error mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              className="stroke-current shrink-0 w-6 h-6"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              ></path>
+            </svg>
+            <span className="text-sm">
+              <strong>Warnung:</strong> Die Signatur dieser Attestierung ist ungültig!
+              Diese könnte gefälscht sein.
+            </span>
+          </div>
+        ) : (
+          <div className="alert alert-info mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              className="stroke-current shrink-0 w-6 h-6"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              ></path>
+            </svg>
+            <span className="text-sm">
+              <strong>{displayName}</strong> hat deine Identität verifiziert.
+              Um zurück zu vertrauen, scanne den QR-Code von {displayName}.
+            </span>
+          </div>
+        )}
 
         {remainingCount > 0 && (
           <div className="text-sm text-base-content/60 text-center mb-4">

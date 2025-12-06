@@ -242,7 +242,7 @@ export function CollaboratorsModal<TData = unknown>({
           QR-Code scannen zum Verifizieren
         </button>
 
-        <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+        <div className="space-y-2 max-h-[60vh] overflow-y-auto pt-8 -mt-8">
           {collaborators.map(({ did, displayName, avatarUrl, outgoingTrust, incomingTrust }) => (
             <UserListItem
               key={did}

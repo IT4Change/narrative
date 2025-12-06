@@ -5,10 +5,42 @@
  * Clicking on a user opens their profile modal.
  */
 
+import { useState, useEffect } from 'react';
 import { UserListItem } from './UserListItem';
 import type { BaseDocument } from '../schema/document';
 import type { UserDocument } from '../schema/userDocument';
+import type { TrustAttestation } from '../schema/identity';
 import type { TrustedUserProfile } from '../hooks/useAppContext';
+import { verifyEntitySignature } from '../utils/signature';
+import { extractPublicKeyFromDid, base64Encode } from '../utils/did';
+
+type SignatureStatus = 'valid' | 'invalid' | 'missing' | 'pending';
+
+/**
+ * Verify an attestation's signature
+ */
+async function verifyAttestationSignature(attestation: TrustAttestation): Promise<SignatureStatus> {
+  if (!attestation.signature) {
+    return 'missing';
+  }
+
+  try {
+    const publicKeyBytes = extractPublicKeyFromDid(attestation.trusterDid);
+    if (!publicKeyBytes) {
+      return 'invalid';
+    }
+
+    const publicKeyBase64 = base64Encode(publicKeyBytes);
+    const result = await verifyEntitySignature(
+      attestation as unknown as Record<string, unknown>,
+      publicKeyBase64
+    );
+
+    return result.valid ? 'valid' : 'invalid';
+  } catch {
+    return 'invalid';
+  }
+}
 
 interface ParticipantsModalProps<TData = unknown> {
   isOpen: boolean;
@@ -38,6 +70,36 @@ export function ParticipantsModal<TData = unknown>({
   userDoc,
   trustedUserProfiles = {},
 }: ParticipantsModalProps<TData>) {
+  // Track signature verification status for each DID
+  const [signatureStatuses, setSignatureStatuses] = useState<
+    Record<string, { outgoing?: SignatureStatus; incoming?: SignatureStatus }>
+  >({});
+
+  // Verify signatures when userDoc changes
+  useEffect(() => {
+    if (!userDoc || !isOpen) return;
+
+    const verifyAll = async () => {
+      const newStatuses: Record<string, { outgoing?: SignatureStatus; incoming?: SignatureStatus }> = {};
+
+      // Verify outgoing trust attestations (trustGiven)
+      for (const [trusteeDid, attestation] of Object.entries(userDoc.trustGiven || {})) {
+        if (!newStatuses[trusteeDid]) newStatuses[trusteeDid] = {};
+        newStatuses[trusteeDid].outgoing = await verifyAttestationSignature(attestation);
+      }
+
+      // Verify incoming trust attestations (trustReceived)
+      for (const [trusterDid, attestation] of Object.entries(userDoc.trustReceived || {})) {
+        if (!newStatuses[trusterDid]) newStatuses[trusterDid] = {};
+        newStatuses[trusterDid].incoming = await verifyAttestationSignature(attestation);
+      }
+
+      setSignatureStatuses(newStatuses);
+    };
+
+    verifyAll();
+  }, [userDoc, isOpen]);
+
   if (!isOpen) return null;
 
   // Get all workspace participants from doc.identities
@@ -115,6 +177,8 @@ export function ParticipantsModal<TData = unknown>({
               isHidden={hiddenUserDids.has(did)}
               outgoingTrust={userDoc?.trustGiven?.[did]}
               incomingTrust={userDoc?.trustReceived?.[did]}
+              outgoingSignatureStatus={signatureStatuses[did]?.outgoing}
+              incomingSignatureStatus={signatureStatuses[did]?.incoming}
               onUserClick={onUserClick}
               onToggleVisibility={onToggleUserVisibility}
               showVisibilityToggle={true}

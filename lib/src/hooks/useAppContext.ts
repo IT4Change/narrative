@@ -412,6 +412,65 @@ export function useAppContext<TData = unknown>(
     setLastIdentityLookupKey(desiredKey);
   }); // No dependencies - we check manually
 
+  // Validate and clean up trustReceived entries with invalid signatures
+  // This runs whenever trustReceived changes (including initial load and remote updates)
+  // Tracks which DIDs we've already validated to avoid re-checking unchanged entries
+  const validatedTrustReceivedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!userDocHandle || !userDoc) return;
+
+    const validateAndCleanup = async () => {
+      const trustReceived = userDoc.trustReceived || {};
+      const invalidDids: string[] = [];
+      const currentDids = new Set(Object.keys(trustReceived));
+
+      // Clean up tracking for DIDs that are no longer in trustReceived
+      for (const did of validatedTrustReceivedRef.current) {
+        if (!currentDids.has(did)) {
+          validatedTrustReceivedRef.current.delete(did);
+        }
+      }
+
+      for (const [trusterDid, attestation] of Object.entries(trustReceived)) {
+        // Skip if we've already validated this entry (and it hasn't changed)
+        // We use the attestation ID as a proxy for "unchanged"
+        const validationKey = `${trusterDid}:${attestation.id}`;
+        if (validatedTrustReceivedRef.current.has(validationKey)) {
+          continue;
+        }
+
+        // Allow unsigned attestations during transition period
+        if (!attestation.signature) {
+          console.log('🔐 Allowing unsigned trustReceived (legacy):', trusterDid);
+          validatedTrustReceivedRef.current.add(validationKey);
+          continue;
+        }
+
+        const isValid = await verifyAttestationSignature(attestation);
+        if (isValid) {
+          validatedTrustReceivedRef.current.add(validationKey);
+        } else {
+          console.warn('🔐 Found invalid trustReceived signature, will remove:', trusterDid);
+          invalidDids.push(trusterDid);
+        }
+      }
+
+      // Remove invalid entries from the document
+      if (invalidDids.length > 0) {
+        console.log('🔐 Removing', invalidDids.length, 'invalid trustReceived entries');
+        userDocHandle.change((d) => {
+          for (const did of invalidDids) {
+            delete d.trustReceived[did];
+          }
+          d.lastModified = Date.now();
+        });
+      }
+    };
+
+    validateAndCleanup();
+  }, [userDocHandle, userDoc, userDoc?.trustReceived]);
+
   // Trust notifications detection (from User-Doc)
   // Verifies signatures before showing notifications
   useEffect(() => {
@@ -792,20 +851,42 @@ export function useAppContext<TData = unknown>(
 
   const handleRevokeTrust = useCallback(
     (trusteeDid: string) => {
-      if (!userDocHandle) {
+      if (!userDocHandle || !currentUserDid) {
         console.warn('Cannot revoke trust: userDocHandle not available');
         return;
       }
 
       console.log('🚫 Revoking trust for:', trusteeDid);
 
+      // Get the trustee's userDocUrl before removing (we need it for bidirectional cleanup)
+      const trusteeUserDocUrl = userDoc?.trustReceived?.[trusteeDid]?.trusterUserDocUrl
+        || doc?.identityLookup?.[trusteeDid]?.userDocUrl;
+
+      // 1. Remove from our own trustGiven
       userDocHandle.change((d) => {
         removeTrustGiven(d, trusteeDid);
       });
 
-      showToast(`Trust revoked`);
+      // 2. Remove from trustee's trustReceived (bidirectional cleanup)
+      if (trusteeUserDocUrl && repo) {
+        console.log('🚫 Removing from trustee trustReceived:', trusteeUserDocUrl);
+        repo.find<UserDocument>(trusteeUserDocUrl as AutomergeUrl).then((trusteeDocHandle) => {
+          trusteeDocHandle.change((d: UserDocument) => {
+            // Remove our attestation from their trustReceived
+            if (d.trustReceived?.[currentUserDid]) {
+              delete d.trustReceived[currentUserDid];
+              d.lastModified = Date.now();
+              console.log('🚫 Removed from trustee trustReceived');
+            }
+          });
+        }).catch((err: unknown) => {
+          console.warn('🚫 Failed to cleanup trustee trustReceived:', err);
+        });
+      }
+
+      setToastMessage(`Vertrauen entzogen`);
     },
-    [userDocHandle]
+    [userDocHandle, currentUserDid, userDoc, doc, repo]
   );
 
   const handleTrustBack = useCallback(
