@@ -253,7 +253,7 @@ export function UserProfileModal<TData = unknown>({
             <div className="flex flex-col items-center mb-4 pt-2">
               <div className="relative mb-2">
                 <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-primary ring-offset-2 ring-offset-base-100">
-                  <UserAvatar did={did} avatarUrl={avatarUrl} size={80} />
+                  <UserAvatar did={did} avatarUrl={avatarUrl} size="full" />
                 </div>
                 {/* Edit overlay for avatar - only if canEdit */}
                 {canEdit && (
@@ -407,7 +407,7 @@ export function UserProfileModal<TData = unknown>({
             <div className="flex flex-col items-center mb-4 pt-2">
               <div className="relative mb-2">
                 <div className="w-20 h-20 rounded-full overflow-hidden ring-2 ring-base-300 ring-offset-2 ring-offset-base-100">
-                  <UserAvatar did={did} avatarUrl={avatarUrl} size={80} />
+                  <UserAvatar did={did} avatarUrl={avatarUrl} size="full" />
                 </div>
                 {/* Trust indicator on avatar */}
                 {isMutualTrust && (
