@@ -68,7 +68,7 @@ export function WorkspaceSwitcher({
 
       <ul
         tabIndex={0}
-        className="dropdown-content menu bg-base-100 rounded-box z-[2000] mt-6 w-64 p-2 shadow-lg"
+        className="dropdown-content menu bg-base-100 rounded-box z-[2000] mt-4 w-64 p-2 shadow-lg"
       >
         {/* Current workspace - click opens modal */}
         {currentWorkspace && (
