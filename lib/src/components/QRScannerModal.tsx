@@ -60,6 +60,7 @@ export function QRScannerModal<TData = unknown>({
     }
 
     let cleanup: (() => void) | undefined;
+    let pollingInterval: ReturnType<typeof setInterval> | undefined;
 
     const loadAndVerify = async () => {
       setSignatureStatus('loading');
@@ -67,31 +68,28 @@ export function QRScannerModal<TData = unknown>({
         // Load the UserDocument
         const handle = await repo.find<UserDocument>(scannedUserDocUrl as AutomergeUrl);
 
+        // Track if we've successfully loaded the profile
+        let profileLoaded = false;
+
         // Function to update profile from document
-        const updateFromDoc = async (userDoc: UserDocument | undefined, isInitialLoad: boolean = false) => {
+        const updateFromDoc = async (userDoc: UserDocument | undefined) => {
           if (!userDoc || !userDoc.profile) {
-            if (isInitialLoad) {
-              // Document not yet synced from network - show waiting state
-              console.log('[QRScannerModal] UserDocument not yet available, waiting for network sync...');
-              setSignatureStatus('waiting');
-              setLoadedProfile(null);
-            } else {
-              // Doc was available but profile is missing
-              console.warn('[QRScannerModal] UserDocument loaded but profile not found');
-              setSignatureStatus('missing');
-              setLoadedProfile(null);
-            }
-            return;
+            // Document not yet available - stay in waiting state
+            console.log('[QRScannerModal] UserDocument not yet available, waiting for network sync...');
+            setSignatureStatus('waiting');
+            setLoadedProfile(null);
+            return false; // Not loaded yet
           }
 
           // Verify the DID matches
           if (userDoc.did !== scannedDid) {
             console.warn('[QRScannerModal] DID mismatch in UserDocument');
             setSignatureStatus('invalid');
-            return;
+            return true; // Loaded but invalid
           }
 
           // Store the profile data from UserDocument
+          console.log('[QRScannerModal] Profile loaded:', userDoc.profile.displayName);
           setLoadedProfile({
             displayName: userDoc.profile.displayName,
             avatarUrl: userDoc.profile.avatarUrl,
@@ -100,7 +98,7 @@ export function QRScannerModal<TData = unknown>({
           // Check if profile has a signature
           if (!userDoc.profile.signature) {
             setSignatureStatus('missing');
-            return;
+            return true; // Loaded but no signature
           }
 
           // Verify the profile signature
@@ -109,20 +107,40 @@ export function QRScannerModal<TData = unknown>({
           const result = await verifyProfileSignature(userDoc.profile, publicKeyBase64);
 
           setSignatureStatus(result.valid ? 'valid' : 'invalid');
+          return true; // Loaded
         };
 
-        // IMPORTANT: Subscribe BEFORE reading initial doc to avoid race condition
-        // Subscribe to changes for reactive updates
+        // Subscribe to changes for reactive updates (for changes AFTER initial load)
         const onChange = () => {
-          updateFromDoc(handle.doc(), false);
+          updateFromDoc(handle.doc());
         };
         handle.on('change', onChange);
 
-        // Now do initial update (subscription is already active)
-        await updateFromDoc(handle.doc(), true);
+        // Try initial load
+        profileLoaded = await updateFromDoc(handle.doc());
+
+        // If not loaded, poll every 500ms until document arrives from network
+        // The 'change' event only fires for changes, not for initial network sync
+        if (!profileLoaded) {
+          console.log('[QRScannerModal] Starting polling for network document...');
+          pollingInterval = setInterval(async () => {
+            const doc = handle.doc();
+            if (doc?.profile) {
+              console.log('[QRScannerModal] Document arrived from network!');
+              profileLoaded = await updateFromDoc(doc);
+              if (profileLoaded && pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = undefined;
+              }
+            }
+          }, 500);
+        }
 
         cleanup = () => {
           handle.off('change', onChange);
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+          }
         };
       } catch (error) {
         console.error('[QRScannerModal] Failed to load/verify UserDocument:', error);
