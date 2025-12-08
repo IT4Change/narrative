@@ -202,9 +202,9 @@ export function MarketModule({
         )}
       </div>
 
-      {/* Floating Create Button */}
+      {/* Floating Create Button - bottom-20 on mobile for BottomNav, bottom-6 on desktop */}
       <button
-        className="btn btn-primary gap-2 fixed bottom-6 right-6 shadow-lg shadow-black/30 z-10"
+        className="btn btn-primary gap-2 fixed bottom-20 md:bottom-6 right-6 shadow-lg shadow-black/30 z-10"
         onClick={() => setIsCreateModalOpen(true)}
         title="Neues Inserat"
       >

@@ -272,52 +272,74 @@ export function AppShell<TDoc>({
     let handle: DocHandle<UserDocument>;
 
     if (savedUserDocId) {
-      // Try to load existing user document
-      try {
-        console.log(`[AppShell] Loading user document: ${savedUserDocId.substring(0, 30)}...`);
+      // Try to load existing user document with retries
+      // This is important for import scenarios where the document needs to sync from the network
+      const MAX_USER_DOC_RETRIES = 3;
+      let lastError: Error | null = null;
 
-        // Add timeout for user document loading
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('User document load timeout')), DOC_LOAD_TIMEOUT);
-        });
+      for (let attempt = 1; attempt <= MAX_USER_DOC_RETRIES; attempt++) {
+        try {
+          console.log(`[AppShell] Loading user document (attempt ${attempt}/${MAX_USER_DOC_RETRIES}): ${savedUserDocId.substring(0, 30)}...`);
 
-        // In automerge-repo v2.x, find() returns a Promise that resolves when ready
-        handle = await Promise.race([
-          repo.find<UserDocument>(savedUserDocId as AutomergeUrl),
-          timeoutPromise,
-        ]);
-
-        // Verify the document belongs to this user
-        const doc = handle.doc();
-        if (!doc) {
-          console.warn('[AppShell] User document loaded but doc() returned null');
-          throw new Error('User document empty');
-        }
-
-        if (doc.did !== identity.did) {
-          console.warn('[AppShell] User document DID mismatch, creating new document');
-          // Create new document instead
-          handle = repo.create<UserDocument>();
-          handle.change((d) => {
-            const newDoc = createUserDocument(identity.did, identity.displayName || 'User');
-            Object.assign(d, newDoc);
+          // Add timeout for user document loading - longer timeout for retries
+          const timeout = DOC_LOAD_TIMEOUT * attempt;
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('User document load timeout')), timeout);
           });
-          saveUserDocId(handle.url);
-        } else {
-          console.log('[AppShell] User document loaded successfully');
+
+          // In automerge-repo v2.x, find() returns a Promise that resolves when ready
+          handle = await Promise.race([
+            repo.find<UserDocument>(savedUserDocId as AutomergeUrl),
+            timeoutPromise,
+          ]);
+
+          // Verify the document belongs to this user
+          const doc = handle.doc();
+          if (!doc) {
+            console.warn('[AppShell] User document loaded but doc() returned null');
+            throw new Error('User document empty');
+          }
+
+          if (doc.did !== identity.did) {
+            console.warn('[AppShell] User document DID mismatch, creating new document');
+            // Create new document instead
+            handle = repo.create<UserDocument>();
+            handle.change((d) => {
+              const newDoc = createUserDocument(identity.did, identity.displayName || 'User');
+              Object.assign(d, newDoc);
+            });
+            saveUserDocId(handle.url);
+          } else {
+            console.log('[AppShell] User document loaded successfully');
+          }
+
+          // Success - exit retry loop
+          setUserDocId(handle.url);
+          setUserDocHandle(handle);
+          return;
+        } catch (e) {
+          lastError = e instanceof Error ? e : new Error(String(e));
+          console.warn(`[AppShell] Failed to load user document (attempt ${attempt}/${MAX_USER_DOC_RETRIES}):`, e);
+
+          if (attempt < MAX_USER_DOC_RETRIES) {
+            // Wait before retry with exponential backoff
+            const delay = RETRY_DELAY_BASE * attempt;
+            console.log(`[AppShell] Retrying user document load in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
         }
-      } catch (e) {
-        console.warn('[AppShell] Failed to load user document, creating new one:', e);
-        // Clear old user doc ID and create new document
-        clearUserDocId();
-        handle = repo.create<UserDocument>();
-        handle.change((d) => {
-          const newDoc = createUserDocument(identity.did, identity.displayName || 'User');
-          Object.assign(d, newDoc);
-        });
-        saveUserDocId(handle.url);
-        console.log('[AppShell] New user document created:', handle.url.substring(0, 30));
       }
+
+      // All retries failed - create new document
+      console.warn('[AppShell] All retries failed for user document, creating new one:', lastError);
+      clearUserDocId();
+      handle = repo.create<UserDocument>();
+      handle.change((d) => {
+        const newDoc = createUserDocument(identity.did, identity.displayName || 'User');
+        Object.assign(d, newDoc);
+      });
+      saveUserDocId(handle.url);
+      console.log('[AppShell] New user document created:', handle.url.substring(0, 30));
     } else {
       // Create new user document
       console.log('[AppShell] No saved user document, creating new one');
