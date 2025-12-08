@@ -34,23 +34,34 @@
         <div class="network-loader">
           <!-- Center node -->
           <div class="node center"></div>
-          <!-- Outer nodes with connections -->
-          <div class="node n1"><div class="line"></div></div>
-          <div class="node n2"><div class="line"></div></div>
-          <div class="node n3"><div class="line"></div></div>
-          <div class="node n4"><div class="line"></div></div>
-          <div class="node n5"><div class="line"></div></div>
+          <!-- Level 1: Outer nodes with connections to center -->
+          <div class="node n1"><div class="line l-center"></div></div>
+          <div class="node n2"><div class="line l-center"></div><div class="line l-peer"></div></div>
+          <div class="node n3"><div class="line l-center"></div><div class="line l-peer"></div></div>
+          <div class="node n4"><div class="line l-center"></div><div class="line l-peer"></div></div>
+          <div class="node n5"><div class="line l-center"></div><div class="line l-peer"></div></div>
+          <!-- Level 2: Multiple nodes branching from each level 1 node -->
+          <div class="node n1a"><div class="line l-parent"></div><div class="line l-peer"></div></div>
+          <div class="node n1b"><div class="line l-parent"></div><div class="line l-peer"></div></div>
+          <div class="node n2a"><div class="line l-parent"></div></div>
+          <div class="node n2b"><div class="line l-parent"></div><div class="line l-peer"></div></div>
+          <div class="node n3a"><div class="line l-parent"></div></div>
+          <div class="node n3b"><div class="line l-parent"></div><div class="line l-peer"></div></div>
+          <div class="node n4a"><div class="line l-parent"></div><div class="line l-peer"></div></div>
+          <div class="node n4b"><div class="line l-parent"></div></div>
+          <div class="node n5a"><div class="line l-parent"></div></div>
+          <div class="node n5b"><div class="line l-parent"></div></div>
         </div>
         <style>
           .network-loader {
-            width: 80px;
-            height: 80px;
+            width: 120px;
+            height: 120px;
             position: relative;
           }
           .node {
             position: absolute;
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             transform: translate(-50%, -50%);
           }
@@ -58,8 +69,8 @@
             left: 50%;
             top: 50%;
             background: #6366f1;
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             animation: pulse 1.5s ease-in-out infinite;
             z-index: 10;
           }
@@ -68,34 +79,66 @@
             height: 2px;
             background: currentColor;
           }
-          /* n1: top center (50%, 10%) - line goes down to center */
-          .node.n1 { left: 50%; top: 10%; background: #10b981; animation: pop 3s ease-in-out infinite 0s; }
-          .node.n1 .line { width: 32px; left: 6px; top: 6px; transform: rotate(90deg); transform-origin: 0 0; background: #10b981; }
+          /* Level 1 nodes - connect to center */
+          /* n1: top center */
+          .node.n1 { left: 50%; top: 23%; background: #10b981; animation: pop 4s ease-in-out infinite 0s; }
+          .node.n1 .line { width: 27px; left: 5px; top: 5px; transform: rotate(90deg); transform-origin: 0 0; background: #10b981; }
 
-          /* n2: top right (90%, 30%) - line goes to center (down-left) */
-          .node.n2 { left: 90%; top: 30%; background: #3b82f6; animation: pop 3s ease-in-out infinite 0.3s; }
-          .node.n2 .line { width: 36px; left: 6px; top: 6px; transform: rotate(153deg); transform-origin: 0 0; background: #3b82f6; }
+          /* n2: top right */
+          .node.n2 { left: 77%; top: 35%; background: #3b82f6; animation: pop 4s ease-in-out infinite 0.2s; }
+          .node.n2 .line { width: 30px; left: 5px; top: 5px; transform: rotate(151deg); transform-origin: 0 0; background: #3b82f6; }
 
-          /* n3: bottom right (85%, 80%) - line goes to center (up-left) */
-          .node.n3 { left: 85%; top: 80%; background: #f59e0b; animation: pop 3s ease-in-out infinite 0.6s; }
-          .node.n3 .line { width: 40px; left: 6px; top: 6px; transform: rotate(-139deg); transform-origin: 0 0; background: #f59e0b; }
+          /* n3: bottom right */
+          .node.n3 { left: 73%; top: 73%; background: #f59e0b; animation: pop 4s ease-in-out infinite 0.4s; }
+          .node.n3 .line { width: 32px; left: 5px; top: 5px; transform: rotate(-135deg); transform-origin: 0 0; background: #f59e0b; }
 
-          /* n4: bottom left (15%, 75%) - line goes to center (up-right) */
-          .node.n4 { left: 15%; top: 75%; background: #ec4899; animation: pop 3s ease-in-out infinite 0.9s; }
-          .node.n4 .line { width: 38px; left: 6px; top: 6px; transform: rotate(-36deg); transform-origin: 0 0; background: #ec4899; }
+          /* n4: bottom left */
+          .node.n4 { left: 27%; top: 73%; background: #ec4899; animation: pop 4s ease-in-out infinite 0.6s; }
+          .node.n4 .line { width: 32px; left: 5px; top: 5px; transform: rotate(-45deg); transform-origin: 0 0; background: #ec4899; }
 
-          /* n5: top left (15%, 25%) - line goes to center (down-right) */
-          .node.n5 { left: 15%; top: 25%; background: #8b5cf6; animation: pop 3s ease-in-out infinite 1.2s; }
-          .node.n5 .line { width: 34px; left: 6px; top: 6px; transform: rotate(36deg); transform-origin: 0 0; background: #8b5cf6; }
+          /* n5: top left */
+          .node.n5 { left: 23%; top: 35%; background: #8b5cf6; animation: pop 4s ease-in-out infinite 0.8s; }
+          .node.n5 .line { width: 30px; left: 5px; top: 5px; transform: rotate(29deg); transform-origin: 0 0; background: #8b5cf6; }
+
+          /* Level 2 nodes - each with unique color */
+          /* From n1 (top) */
+          .node.n1a { left: 35%; top: 5%; background: #06b6d4; animation: pop 4s ease-in-out infinite 0.5s; }
+          .node.n1a .line { width: 22px; left: 5px; top: 5px; transform: rotate(48deg); transform-origin: 0 0; background: #06b6d4; }
+          .node.n1b { left: 65%; top: 5%; background: #84cc16; animation: pop 4s ease-in-out infinite 0.6s; }
+          .node.n1b .line { width: 22px; left: 5px; top: 5px; transform: rotate(132deg); transform-origin: 0 0; background: #84cc16; }
+
+          /* From n2 (top right) */
+          .node.n2a { left: 95%; top: 20%; background: #14b8a6; animation: pop 4s ease-in-out infinite 0.7s; }
+          .node.n2a .line { width: 22px; left: 5px; top: 5px; transform: rotate(140deg); transform-origin: 0 0; background: #14b8a6; }
+          .node.n2b { left: 92%; top: 50%; background: #a855f7; animation: pop 4s ease-in-out infinite 0.8s; }
+          .node.n2b .line { width: 20px; left: 5px; top: 5px; transform: rotate(-135deg); transform-origin: 0 0; background: #a855f7; }
+
+          /* From n3 (bottom right) */
+          .node.n3a { left: 92%; top: 88%; background: #ef4444; animation: pop 4s ease-in-out infinite 0.9s; }
+          .node.n3a .line { width: 22px; left: 5px; top: 5px; transform: rotate(-140deg); transform-origin: 0 0; background: #ef4444; }
+          .node.n3b { left: 60%; top: 95%; background: #22c55e; animation: pop 4s ease-in-out infinite 1.0s; }
+          .node.n3b .line { width: 22px; left: 5px; top: 5px; transform: rotate(-60deg); transform-origin: 0 0; background: #22c55e; }
+
+          /* From n4 (bottom left) */
+          .node.n4a { left: 8%; top: 88%; background: #eab308; animation: pop 4s ease-in-out infinite 1.1s; }
+          .node.n4a .line { width: 22px; left: 5px; top: 5px; transform: rotate(-40deg); transform-origin: 0 0; background: #eab308; }
+          .node.n4b { left: 40%; top: 95%; background: #0ea5e9; animation: pop 4s ease-in-out infinite 1.2s; }
+          .node.n4b .line { width: 22px; left: 5px; top: 5px; transform: rotate(-120deg); transform-origin: 0 0; background: #0ea5e9; }
+
+          /* From n5 (top left) */
+          .node.n5a { left: 5%; top: 20%; background: #f97316; animation: pop 4s ease-in-out infinite 1.3s; }
+          .node.n5a .line { width: 22px; left: 5px; top: 5px; transform: rotate(40deg); transform-origin: 0 0; background: #f97316; }
+          .node.n5b { left: 8%; top: 50%; background: #e11d48; animation: pop 4s ease-in-out infinite 1.4s; }
+          .node.n5b .line { width: 20px; left: 5px; top: 5px; transform: rotate(-45deg); transform-origin: 0 0; background: #e11d48; }
 
           @keyframes pulse {
             0%, 100% { transform: translate(-50%, -50%) scale(1); }
             50% { transform: translate(-50%, -50%) scale(1.2); }
           }
           @keyframes pop {
-            0%, 10% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
-            20%, 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            90%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+            0%, 8% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+            15%, 85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            92%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
           }
         </style>
       </div>

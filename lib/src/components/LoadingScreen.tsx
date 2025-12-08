@@ -29,23 +29,34 @@ export function LoadingScreen({ message }: LoadingScreenProps) {
       <div className="network-loader">
         {/* Center node */}
         <div className="node center"></div>
-        {/* Outer nodes with connections */}
-        <div className="node n1"><div className="line"></div></div>
-        <div className="node n2"><div className="line"></div></div>
-        <div className="node n3"><div className="line"></div></div>
-        <div className="node n4"><div className="line"></div></div>
-        <div className="node n5"><div className="line"></div></div>
+        {/* Level 1: Outer nodes with connections to center */}
+        <div className="node n1"><div className="line l-center"></div></div>
+        <div className="node n2"><div className="line l-center"></div><div className="line l-peer"></div></div>
+        <div className="node n3"><div className="line l-center"></div><div className="line l-peer"></div></div>
+        <div className="node n4"><div className="line l-center"></div><div className="line l-peer"></div></div>
+        <div className="node n5"><div className="line l-center"></div><div className="line l-peer"></div></div>
+        {/* Level 2: Multiple nodes branching from each level 1 node */}
+        <div className="node n1a"><div className="line l-parent"></div><div className="line l-peer"></div></div>
+        <div className="node n1b"><div className="line l-parent"></div><div className="line l-peer"></div></div>
+        <div className="node n2a"><div className="line l-parent"></div></div>
+        <div className="node n2b"><div className="line l-parent"></div><div className="line l-peer"></div></div>
+        <div className="node n3a"><div className="line l-parent"></div></div>
+        <div className="node n3b"><div className="line l-parent"></div><div className="line l-peer"></div></div>
+        <div className="node n4a"><div className="line l-parent"></div><div className="line l-peer"></div></div>
+        <div className="node n4b"><div className="line l-parent"></div></div>
+        <div className="node n5a"><div className="line l-parent"></div></div>
+        <div className="node n5b"><div className="line l-parent"></div></div>
       </div>
       <style>{`
         .network-loader {
-          width: 80px;
-          height: 80px;
+          width: 120px;
+          height: 120px;
           position: relative;
         }
         .network-loader .node {
           position: absolute;
-          width: 12px;
-          height: 12px;
+          width: 10px;
+          height: 10px;
           border-radius: 50%;
           transform: translate(-50%, -50%);
         }
@@ -53,8 +64,8 @@ export function LoadingScreen({ message }: LoadingScreenProps) {
           left: 50%;
           top: 50%;
           background: #6366f1;
-          width: 16px;
-          height: 16px;
+          width: 14px;
+          height: 14px;
           animation: nl-pulse 1.5s ease-in-out infinite;
           z-index: 10;
         }
@@ -63,34 +74,66 @@ export function LoadingScreen({ message }: LoadingScreenProps) {
           height: 2px;
           background: currentColor;
         }
-        /* n1: top center (50%, 10%) - line goes down to center */
-        .network-loader .node.n1 { left: 50%; top: 10%; background: #10b981; animation: nl-pop 3s ease-in-out infinite 0s; }
-        .network-loader .node.n1 .line { width: 32px; left: 6px; top: 6px; transform: rotate(90deg); transform-origin: 0 0; background: #10b981; }
+        /* Level 1 nodes - connect to center */
+        /* n1: top center */
+        .network-loader .node.n1 { left: 50%; top: 23%; background: #10b981; animation: nl-pop 4s ease-in-out infinite 0s; }
+        .network-loader .node.n1 .line { width: 27px; left: 5px; top: 5px; transform: rotate(90deg); transform-origin: 0 0; background: #10b981; }
 
-        /* n2: top right (90%, 30%) - line goes to center (down-left) */
-        .network-loader .node.n2 { left: 90%; top: 30%; background: #3b82f6; animation: nl-pop 3s ease-in-out infinite 0.3s; }
-        .network-loader .node.n2 .line { width: 36px; left: 6px; top: 6px; transform: rotate(153deg); transform-origin: 0 0; background: #3b82f6; }
+        /* n2: top right */
+        .network-loader .node.n2 { left: 77%; top: 35%; background: #3b82f6; animation: nl-pop 4s ease-in-out infinite 0.2s; }
+        .network-loader .node.n2 .line { width: 30px; left: 5px; top: 5px; transform: rotate(151deg); transform-origin: 0 0; background: #3b82f6; }
 
-        /* n3: bottom right (85%, 80%) - line goes to center (up-left) */
-        .network-loader .node.n3 { left: 85%; top: 80%; background: #f59e0b; animation: nl-pop 3s ease-in-out infinite 0.6s; }
-        .network-loader .node.n3 .line { width: 40px; left: 6px; top: 6px; transform: rotate(-139deg); transform-origin: 0 0; background: #f59e0b; }
+        /* n3: bottom right */
+        .network-loader .node.n3 { left: 73%; top: 73%; background: #f59e0b; animation: nl-pop 4s ease-in-out infinite 0.4s; }
+        .network-loader .node.n3 .line { width: 32px; left: 5px; top: 5px; transform: rotate(-135deg); transform-origin: 0 0; background: #f59e0b; }
 
-        /* n4: bottom left (15%, 75%) - line goes to center (up-right) */
-        .network-loader .node.n4 { left: 15%; top: 75%; background: #ec4899; animation: nl-pop 3s ease-in-out infinite 0.9s; }
-        .network-loader .node.n4 .line { width: 38px; left: 6px; top: 6px; transform: rotate(-36deg); transform-origin: 0 0; background: #ec4899; }
+        /* n4: bottom left */
+        .network-loader .node.n4 { left: 27%; top: 73%; background: #ec4899; animation: nl-pop 4s ease-in-out infinite 0.6s; }
+        .network-loader .node.n4 .line { width: 32px; left: 5px; top: 5px; transform: rotate(-45deg); transform-origin: 0 0; background: #ec4899; }
 
-        /* n5: top left (15%, 25%) - line goes to center (down-right) */
-        .network-loader .node.n5 { left: 15%; top: 25%; background: #8b5cf6; animation: nl-pop 3s ease-in-out infinite 1.2s; }
-        .network-loader .node.n5 .line { width: 34px; left: 6px; top: 6px; transform: rotate(36deg); transform-origin: 0 0; background: #8b5cf6; }
+        /* n5: top left */
+        .network-loader .node.n5 { left: 23%; top: 35%; background: #8b5cf6; animation: nl-pop 4s ease-in-out infinite 0.8s; }
+        .network-loader .node.n5 .line { width: 30px; left: 5px; top: 5px; transform: rotate(29deg); transform-origin: 0 0; background: #8b5cf6; }
+
+        /* Level 2 nodes - each with unique color */
+        /* From n1 (top) */
+        .network-loader .node.n1a { left: 35%; top: 5%; background: #06b6d4; animation: nl-pop 4s ease-in-out infinite 0.5s; }
+        .network-loader .node.n1a .line { width: 22px; left: 5px; top: 5px; transform: rotate(48deg); transform-origin: 0 0; background: #06b6d4; }
+        .network-loader .node.n1b { left: 65%; top: 5%; background: #84cc16; animation: nl-pop 4s ease-in-out infinite 0.6s; }
+        .network-loader .node.n1b .line { width: 22px; left: 5px; top: 5px; transform: rotate(132deg); transform-origin: 0 0; background: #84cc16; }
+
+        /* From n2 (top right) */
+        .network-loader .node.n2a { left: 95%; top: 20%; background: #14b8a6; animation: nl-pop 4s ease-in-out infinite 0.7s; }
+        .network-loader .node.n2a .line { width: 22px; left: 5px; top: 5px; transform: rotate(140deg); transform-origin: 0 0; background: #14b8a6; }
+        .network-loader .node.n2b { left: 92%; top: 50%; background: #a855f7; animation: nl-pop 4s ease-in-out infinite 0.8s; }
+        .network-loader .node.n2b .line { width: 20px; left: 5px; top: 5px; transform: rotate(-135deg); transform-origin: 0 0; background: #a855f7; }
+
+        /* From n3 (bottom right) */
+        .network-loader .node.n3a { left: 92%; top: 88%; background: #ef4444; animation: nl-pop 4s ease-in-out infinite 0.9s; }
+        .network-loader .node.n3a .line { width: 22px; left: 5px; top: 5px; transform: rotate(-140deg); transform-origin: 0 0; background: #ef4444; }
+        .network-loader .node.n3b { left: 60%; top: 95%; background: #22c55e; animation: nl-pop 4s ease-in-out infinite 1.0s; }
+        .network-loader .node.n3b .line { width: 22px; left: 5px; top: 5px; transform: rotate(-60deg); transform-origin: 0 0; background: #22c55e; }
+
+        /* From n4 (bottom left) */
+        .network-loader .node.n4a { left: 8%; top: 88%; background: #eab308; animation: nl-pop 4s ease-in-out infinite 1.1s; }
+        .network-loader .node.n4a .line { width: 22px; left: 5px; top: 5px; transform: rotate(-40deg); transform-origin: 0 0; background: #eab308; }
+        .network-loader .node.n4b { left: 40%; top: 95%; background: #0ea5e9; animation: nl-pop 4s ease-in-out infinite 1.2s; }
+        .network-loader .node.n4b .line { width: 22px; left: 5px; top: 5px; transform: rotate(-120deg); transform-origin: 0 0; background: #0ea5e9; }
+
+        /* From n5 (top left) */
+        .network-loader .node.n5a { left: 5%; top: 20%; background: #f97316; animation: nl-pop 4s ease-in-out infinite 1.3s; }
+        .network-loader .node.n5a .line { width: 22px; left: 5px; top: 5px; transform: rotate(40deg); transform-origin: 0 0; background: #f97316; }
+        .network-loader .node.n5b { left: 8%; top: 50%; background: #e11d48; animation: nl-pop 4s ease-in-out infinite 1.4s; }
+        .network-loader .node.n5b .line { width: 20px; left: 5px; top: 5px; transform: rotate(-45deg); transform-origin: 0 0; background: #e11d48; }
 
         @keyframes nl-pulse {
           0%, 100% { transform: translate(-50%, -50%) scale(1); }
           50% { transform: translate(-50%, -50%) scale(1.2); }
         }
         @keyframes nl-pop {
-          0%, 10% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
-          20%, 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-          90%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+          0%, 8% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+          15%, 85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          92%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
         }
       `}</style>
       {message && <p style={{ color: '#64748b', fontSize: '14px' }}>{message}</p>}
