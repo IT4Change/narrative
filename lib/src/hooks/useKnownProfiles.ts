@@ -290,7 +290,9 @@ export function useKnownProfiles({
       console.log(`[useKnownProfiles] Loading doc: ${docUrl.substring(0, 30)}... (expected DID: ${expectedDid?.substring(0, 20) || 'unknown'})`);
 
       try {
+        console.log(`[useKnownProfiles] Calling repo.find() for: ${docUrl.substring(0, 30)}...`);
         const handle = await repo.find<UserDocument>(docUrl as AutomergeUrl);
+        console.log(`[useKnownProfiles] repo.find() returned handle for: ${docUrl.substring(0, 30)}...`);
 
         // Create change handler BEFORE reading doc to avoid race
         const changeHandler = async ({ doc: changedDoc }: { doc: UserDocument }) => {

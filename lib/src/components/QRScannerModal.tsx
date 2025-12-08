@@ -88,7 +88,9 @@ export function QRScannerModal<TData = unknown>({
       setSignatureStatus('loading');
       try {
         // Load the UserDocument
+        console.log('[QRScannerModal] Calling repo.find() for:', scannedUserDocUrl?.substring(0, 40));
         const handle = await repo.find<UserDocument>(scannedUserDocUrl as AutomergeUrl);
+        console.log('[QRScannerModal] repo.find() returned handle');
 
         // Function to update profile from document
         const updateFromDoc = async (userDoc: UserDocument | undefined) => {
