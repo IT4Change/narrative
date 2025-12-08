@@ -162,7 +162,7 @@ export function AppNavbar<TData = unknown>({
 
   return (
     <>
-      <div className="navbar bg-base-100 shadow-lg z-[1100] flex-shrink-0">
+      <div className="navbar bg-base-100 shadow-lg z-[1100] flex-shrink-0 sticky top-0">
         {/* Left: Workspace Switcher or App Title */}
         <div className="navbar-start">
           {hideWorkspaceSwitcher ? (
