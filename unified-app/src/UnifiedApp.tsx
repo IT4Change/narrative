@@ -159,7 +159,7 @@ export function UnifiedApp({
                   />
                 </div>
               )}
-              <div className="container mx-auto px-4 md:px-10 pb-24 md:pb-8 max-w-6xl w-full">
+              <div className="container mx-auto px-4 md:px-10 pt-6 md:pt-8 pb-24 md:pb-8 max-w-6xl w-full">
                 {activeModule === 'narrative' && doc?.data.narrative && docHandle && (
                   <NarrativeModuleWrapper
                     doc={doc}

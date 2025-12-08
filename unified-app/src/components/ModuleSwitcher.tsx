@@ -28,7 +28,7 @@ export function ModuleSwitcher({
       {visibleModules.map((module) => (
         <button
           key={module.id}
-          className={`flex items-center justify-center gap-2 py-2 px-4 rounded-md transition-colors ${activeModule === module.id ? 'bg-primary text-primary-content' : 'hover:bg-base-300'}`}
+          className={`flex items-center justify-center gap-2 py-2 px-4 rounded-md transition-colors cursor-pointer ${activeModule === module.id ? 'bg-primary text-primary-content' : 'hover:bg-base-300'}`}
           onClick={() => onModuleChange(module.id)}
           title={module.description}
         >

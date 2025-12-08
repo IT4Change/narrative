@@ -82,7 +82,7 @@ export function StartContent({
                   </div>
                 </div>
                 <button
-                  className="btn btn-outline btn-sm"
+                  className="btn btn-outline h-auto py-3"
                   onClick={onOpenProfile}
                 >
                   Bearbeiten
@@ -110,10 +110,10 @@ export function StartContent({
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  className="btn btn-primary h-auto py-3 gap-1"
+                  className="btn btn-primary h-auto py-3 gap-2"
                   onClick={onOpenScanner}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17 12v4a1 1 0 0 1-1 1h-4" />
                     <path d="M17 3h2a2 2 0 0 1 2 2v2" />
                     <path d="M17 8V7" />
@@ -123,16 +123,16 @@ export function StartContent({
                     <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
                     <rect x="7" y="7" width="5" height="5" rx="1" />
                   </svg>
-                  <span className="text-sm">QR scannen</span>
+                  <span>QR scannen</span>
                 </button>
                 <button
-                  className="btn btn-outline h-auto py-3 gap-1"
+                  className="btn btn-outline h-auto py-3 gap-2"
                   onClick={onShowMyQR}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                   </svg>
-                  <span className="text-sm">QR anzeigen</span>
+                  <span>QR anzeigen</span>
                 </button>
               </div>
             </div>
@@ -158,13 +158,13 @@ export function StartContent({
                     Trete einem Workspace über einen Einladungslink bei oder erstelle einen neuen.
                   </p>
                   <button
-                    className="btn btn-outline w-full gap-3"
+                    className="btn btn-outline w-full h-auto py-3 gap-2"
                     onClick={() => setShowCreateInput(true)}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    <span className="font-semibold">Workspace erstellen</span>
+                    <span>Workspace erstellen</span>
                   </button>
                 </>
               ) : (
@@ -180,7 +180,7 @@ export function StartContent({
                   />
                   <div className="flex gap-2">
                     <button
-                      className="btn btn-ghost flex-1"
+                      className="btn btn-ghost flex-1 h-auto py-3"
                       onClick={() => {
                         setShowCreateInput(false);
                         setWorkspaceName('');
@@ -189,7 +189,7 @@ export function StartContent({
                       Abbrechen
                     </button>
                     <button
-                      className="btn btn-primary flex-1"
+                      className="btn btn-primary flex-1 h-auto py-3"
                       onClick={handleCreateSubmit}
                       disabled={!workspaceName.trim()}
                     >

@@ -219,7 +219,7 @@ export function MainView({
           <>
             {/* Scrollable Content Area - app-specific */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
-              <div className="container mx-auto p-10 pt-8 pb-24 max-w-6xl w-full">
+              <div className="container mx-auto px-4 md:px-10 pt-6 md:pt-8 pb-24 max-w-6xl w-full">
                 <div className="mb-6">
                   <div className="flex flex-wrap items-center gap-3 justify-between">
                     <div className="flex flex-wrap gap-2 mt-3">

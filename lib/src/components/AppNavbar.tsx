@@ -270,13 +270,18 @@ export function AppNavbar<TData = unknown>({
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                    />
+                    <path d="M17 12v4a1 1 0 0 1-1 1h-4" />
+                    <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                    <path d="M17 8V7" />
+                    <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                    <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                    <path d="M7 17h.01" />
+                    <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                    <rect x="7" y="7" width="5" height="5" rx="1" />
                   </svg>
                   Scanner
                 </a>

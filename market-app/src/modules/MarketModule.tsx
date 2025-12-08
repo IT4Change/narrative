@@ -111,7 +111,7 @@ export function MarketModule({
   return (
     <div className="flex flex-col h-full">
       {/* Stats */}
-      <div className="stats shadow mb-4 w-full">
+      <div className="stats bg-base-100 shadow mb-4 w-full">
         <div className="stat">
           <div className="stat-title">Angebote</div>
           <div className="stat-value text-success">{offerCount}</div>
