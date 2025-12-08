@@ -265,12 +265,13 @@ export function useKnownProfiles({
         // Store subscription for cleanup
         subscriptionsRef.current.set(docUrl, { handle, handler: changeHandler, source });
 
-        // Read current state (subscription already active)
-        const userDocData = handle.doc();
-        if (userDocData) {
-          await changeHandler({ doc: userDocData });
+        // Check if document is immediately available
+        const immediateDoc = handle.doc();
+        if (immediateDoc) {
+          // Document already loaded (e.g., from local cache)
+          await changeHandler({ doc: immediateDoc });
         } else {
-          // Doc not yet available - create placeholder
+          // Document not yet available - create placeholder and wait for it
           if (expectedDid) {
             updateProfile(expectedDid, {
               displayName: undefined,
@@ -280,6 +281,19 @@ export function useKnownProfiles({
               signatureStatus: 'pending',
               lastUpdated: Date.now(),
             });
+          }
+
+          // Wait for document to load from network using proper automerge-repo API
+          // This is critical: handle.whenReady() resolves when the doc is synced
+          try {
+            await handle.whenReady();
+            const loadedDoc = handle.doc();
+            if (loadedDoc) {
+              await changeHandler({ doc: loadedDoc });
+            }
+          } catch {
+            // Timeout or error waiting for doc - placeholder remains
+            console.warn(`[useKnownProfiles] Timeout waiting for doc: ${docUrl.substring(0, 30)}...`);
           }
         }
 
