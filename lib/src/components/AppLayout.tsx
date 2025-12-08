@@ -346,10 +346,15 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
       case 'start':
         return (
           <StartContent
-            onJoinWorkspace={onJoinWorkspace}
             onCreateWorkspace={onCreateWorkspace}
-            identity={identity || { did: currentUserDid, displayName: userDoc?.profile?.displayName }}
-            appTitle={appTitle}
+            onOpenProfile={() => ctx.openProfile(currentUserDid)}
+            onOpenScanner={() => setIsScannerOpen(true)}
+            onShowMyQR={() => ctx.openProfile(currentUserDid)}
+            identity={{
+              did: currentUserDid,
+              displayName: userDoc?.profile?.displayName || identity?.displayName,
+              avatarUrl: userDoc?.profile?.avatarUrl,
+            }}
           />
         );
       case 'loading':

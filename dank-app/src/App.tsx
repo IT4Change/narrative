@@ -1,4 +1,4 @@
-import { useRepository, AppShell, OnboardingScreen } from 'narrative-ui';
+import { useRepository, AppShell } from 'narrative-ui';
 import { createEmptyDankWalletDoc } from './schema';
 import { MainView } from './components/MainView';
 
@@ -26,7 +26,6 @@ function App() {
       createEmptyDocument={createEmptyDankWalletDoc}
       storagePrefix="dankWallet"
       enableUserDocument
-      onboardingComponent={OnboardingScreen}
       appTitle="Dank"
     >
       {(props) => <MainView {...props} />}

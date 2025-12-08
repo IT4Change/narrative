@@ -26,8 +26,8 @@ export function createViteConfig(options: AppViteConfigOptions = {}) {
   const { appName, port = 3000, extend = {} } = options;
 
   const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
-  // Custom domain deployment: only use app name as subpath
-  const base = isGithubActions && appName ? `/${appName}/` : '/';
+  // Custom domain deployment: unified app deploys at root, others as subpaths
+  const base = isGithubActions && appName && appName !== 'unified' ? `/${appName}/` : '/';
 
   // Monorepo root directory (one level up from app directories)
   const monorepoRoot = path.resolve(__dirname, '..');

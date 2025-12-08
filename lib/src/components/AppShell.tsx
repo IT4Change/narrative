@@ -109,22 +109,6 @@ export interface AppShellChildProps {
   onSwitchWorkspace: (workspaceId: string) => void;
 }
 
-export interface OnboardingProps {
-  /** Callback when user wants to join a workspace via URL */
-  onJoinWorkspace: (docUrl: string) => void;
-  /** Callback when user wants to create a new workspace */
-  onCreateWorkspace: (name: string, avatar?: string) => void;
-  /** Current user's identity */
-  identity: {
-    did: string;
-    displayName?: string;
-    publicKey?: string;
-    privateKey?: string;
-  };
-  /** App title for personalized greeting */
-  appTitle?: string;
-}
-
 export interface AppShellProps<TDoc> {
   /**
    * Automerge repo instance
@@ -154,17 +138,6 @@ export interface AppShellProps<TDoc> {
   enableUserDocument?: boolean;
 
   /**
-   * Component to render when no workspace exists (onboarding)
-   * If not provided, auto-creates a new workspace (legacy behavior)
-   */
-  onboardingComponent?: React.ComponentType<OnboardingProps>;
-
-  /**
-   * App title passed to onboarding component
-   */
-  appTitle?: string;
-
-  /**
    * Render function that receives initialized document and identity
    */
   children: (props: AppShellChildProps) => ReactNode;
@@ -189,8 +162,6 @@ export function AppShell<TDoc>({
   createEmptyDocument,
   storagePrefix,
   enableUserDocument = false,
-  onboardingComponent: OnboardingComponent,
-  appTitle,
   children,
 }: AppShellProps<TDoc>) {
   // Core state
@@ -496,22 +467,12 @@ export function AppShell<TDoc>({
       // Keep retryCount at last attempt (MAX_RETRY_ATTEMPTS - 1) so display shows correct number
       setRetryCount(MAX_RETRY_ATTEMPTS - 1);
     } else {
-      // No document to load
-      if (OnboardingComponent) {
-        // Show onboarding screen instead of auto-creating workspace
-        console.log('[AppShell] No workspace found, showing onboarding');
-        setIsOnboarding(true);
-        setIsInitializing(false);
-      } else {
-        // Legacy behavior: auto-create new workspace
-        const handle = repo.create(createEmptyDocument(identity));
-        setDocumentId(handle.documentId);
-        saveDocumentId(storagePrefix, handle.documentId);
-        window.location.hash = `doc=${handle.documentId}`;
-        setIsInitializing(false);
-      }
+      // No document to load - show start screen
+      console.log('[AppShell] No workspace found, showing start screen');
+      setIsOnboarding(true);
+      setIsInitializing(false);
     }
-  }, [repo, storagePrefix, createEmptyDocument, enableUserDocument, initializeUserDocument, loadDocumentWithRetry, OnboardingComponent]);
+  }, [repo, storagePrefix, createEmptyDocument, enableUserDocument, initializeUserDocument, loadDocumentWithRetry]);
 
   // Initialize on mount
   useEffect(() => {

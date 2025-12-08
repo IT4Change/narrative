@@ -1,70 +1,41 @@
 /**
  * StartContent - Content area for start state (no workspace loaded)
  *
- * Shows options to:
- * - Join an existing workspace (via link)
- * - Create a new workspace
- *
- * Unlike OnboardingScreen, this is designed to fit in the content area
- * while the shell (navbar, modals) remains functional.
+ * Introduces users to the Web of Trust concept and invites them to:
+ * - Set up their profile
+ * - Build their Web of Trust (verify friends)
+ * - Start workspaces
  */
 
 import { useState } from 'react';
+import { UserAvatar } from './UserAvatar';
 
 export interface StartContentProps {
-  /** Callback when user wants to join a workspace via URL */
-  onJoinWorkspace: (docUrl: string) => void;
   /** Callback when user wants to create a new workspace */
   onCreateWorkspace: (name: string, avatar?: string) => void;
+  /** Callback to open own profile for editing */
+  onOpenProfile: () => void;
+  /** Callback to open QR scanner */
+  onOpenScanner: () => void;
+  /** Callback to show own QR code (opens profile) */
+  onShowMyQR: () => void;
   /** Current user's identity */
   identity: {
     did: string;
     displayName?: string;
+    avatarUrl?: string;
   };
-  /** App title for personalized greeting */
-  appTitle?: string;
 }
 
 export function StartContent({
-  onJoinWorkspace,
   onCreateWorkspace,
+  onOpenProfile,
+  onOpenScanner,
+  onShowMyQR,
   identity,
-  appTitle = 'Narrative',
 }: StartContentProps) {
-  const [showJoinInput, setShowJoinInput] = useState(false);
-  const [joinUrl, setJoinUrl] = useState('');
-  const [joinError, setJoinError] = useState('');
-
   const [showCreateInput, setShowCreateInput] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
-
-  const handleJoinSubmit = () => {
-    const trimmed = joinUrl.trim();
-    if (!trimmed) {
-      setJoinError('Bitte gib einen Link ein');
-      return;
-    }
-
-    // Extract doc ID from various URL formats
-    let docId = trimmed;
-
-    // Handle full URLs with #doc= hash
-    if (trimmed.includes('#doc=')) {
-      const match = trimmed.match(/#doc=([^&]+)/);
-      if (match) {
-        docId = match[1];
-      }
-    }
-
-    // Validate it looks like an automerge URL
-    if (!docId.startsWith('automerge:')) {
-      setJoinError('Ungültiger Workspace-Link');
-      return;
-    }
-
-    setJoinError('');
-    onJoinWorkspace(docId);
-  };
 
   const handleCreateSubmit = () => {
     const trimmed = workspaceName.trim();
@@ -76,106 +47,127 @@ export function StartContent({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        {/* Welcome Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">
-            Willkommen bei {appTitle}!
+    <div className="flex-1 overflow-y-auto flex justify-center p-4 py-8">
+      <div className="max-w-md w-full pb-16">
+        {/* Welcome Header with Web of Trust explanation */}
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold mb-4">
+            Willkommen im{' '}<br className="sm:hidden" /><span className="whitespace-nowrap">Web of Trust</span>
           </h1>
-          <p className="text-base-content/70">
-            Hallo {identity.displayName || 'dort'}! Wie möchtest du starten?
-          </p>
+          <div className="flex gap-3 rounded-lg p-4">
+
+            <p className="text-sm text-base-content/70">
+              Hier kannst du Inhalte gezielt mit vertrauten Personen teilen.
+            </p>
+          </div>
         </div>
 
         {/* Action Cards */}
-        <div className="space-y-4">
-          {/* Join Workspace */}
+        <div className="space-y-6">
+          {/* Profile Card */}
           <div className="card bg-base-100 shadow-lg">
             <div className="card-body">
-              {!showJoinInput ? (
-                <button
-                  className="btn btn-outline btn-lg w-full justify-start gap-3"
-                  onClick={() => setShowJoinInput(true)}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                  <div className="text-left">
-                    <div className="font-semibold">Workspace beitreten</div>
-                    <div className="text-sm text-base-content/60">Mit einem Link oder QR-Code</div>
-                  </div>
-                </button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                    <span className="font-semibold">Workspace beitreten</span>
-                  </div>
-                  <input
-                    type="text"
-                    className={`input input-bordered w-full ${joinError ? 'input-error' : ''}`}
-                    placeholder="Link einfügen (z.B. https://...#doc=automerge:...)"
-                    value={joinUrl}
-                    onChange={(e) => {
-                      setJoinUrl(e.target.value);
-                      setJoinError('');
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleJoinSubmit()}
-                    autoFocus
-                  />
-                  {joinError && (
-                    <p className="text-error text-sm">{joinError}</p>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      className="btn btn-ghost flex-1"
-                      onClick={() => {
-                        setShowJoinInput(false);
-                        setJoinUrl('');
-                        setJoinError('');
-                      }}
-                    >
-                      Abbrechen
-                    </button>
-                    <button
-                      className="btn btn-primary flex-1"
-                      onClick={handleJoinSubmit}
-                    >
-                      Beitreten
-                    </button>
+              <div className="flex items-center gap-2 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="font-semibold">Dein Profil</span>
+              </div>
+              <p className="text-sm text-base-content/60 mb-3">
+                Fülle dein Profil aus, damit andere dich erkennen können.
+              </p>
+              <div className="flex items-center gap-4">
+                <UserAvatar
+                  did={identity.did}
+                  avatarUrl={identity.avatarUrl}
+                  size={48}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold truncate">
+                    {identity.displayName || 'Unbenannt'}
                   </div>
                 </div>
-              )}
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={onOpenProfile}
+                >
+                  Bearbeiten
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Create Workspace */}
+          {/* Info: Web of Trust */}
+          <p className="text-sm text-base-content/70 text-center px-4">
+            Mit dem Web of Trust baust du ein persönliches Vertrauensnetzwerk auf – so kannst du Inhalte gezielt mit vertrauten Personen teilen.
+          </p>
+
+          {/* Web of Trust Card */}
           <div className="card bg-base-100 shadow-lg">
             <div className="card-body">
-              {!showCreateInput ? (
+              <div className="flex items-center gap-2 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </svg>
+                <span className="font-semibold">Web of Trust aufbauen</span>
+              </div>
+              <p className="text-sm text-base-content/60 mb-3">
+                Verifiziere Freunde per QR-Code, um sie deinem Netzwerk hinzuzufügen.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
                 <button
-                  className="btn btn-primary btn-lg w-full justify-start gap-3"
-                  onClick={() => setShowCreateInput(true)}
+                  className="btn btn-primary flex-col h-auto py-3 gap-1"
+                  onClick={onOpenScanner}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                   </svg>
-                  <div className="text-left">
-                    <div className="font-semibold">Neuen Workspace erstellen</div>
-                    <div className="text-sm opacity-80">Starte einen eigenen Workspace</div>
-                  </div>
+                  <span className="text-sm">QR scannen</span>
                 </button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <button
+                  className="btn btn-outline flex-col h-auto py-3 gap-1"
+                  onClick={onShowMyQR}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  <span className="text-sm">Mein QR zeigen</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Info: Workspace */}
+          <p className="text-sm text-base-content/70 text-center px-4">
+            Ein Workspace ist ein geteilter Raum, wo alle Teilnehmer gemeinsam arbeiten und den gleichen Content sehen.
+          </p>
+
+          {/* Workspace Card */}
+          <div className="card bg-base-100 shadow-lg">
+            <div className="card-body">
+              <div className="flex items-center gap-2 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span className="font-semibold">Workspace</span>
+              </div>
+              {!showCreateInput ? (
+                <>
+                  <p className="text-sm text-base-content/60 mb-3">
+                    Trete einem Workspace über einen Einladungslink bei oder erstelle einen neuen.
+                  </p>
+                  <button
+                    className="btn btn-outline w-full gap-3"
+                    onClick={() => setShowCreateInput(true)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    <span className="font-semibold">Neuen Workspace erstellen</span>
-                  </div>
+                    <span className="font-semibold">Workspace erstellen</span>
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-3">
                   <input
                     type="text"
                     className="input input-bordered w-full"
@@ -207,33 +199,8 @@ export function StartContent({
             </div>
           </div>
         </div>
-
-        {/* Info Section */}
-        <div className="mt-8 space-y-4">
-          <div className="divider text-base-content/50 text-sm">Was ist das?</div>
-
-          <div className="bg-base-100 rounded-lg p-4 space-y-3">
-            <div className="flex gap-3">
-              <div className="text-2xl">🏢</div>
-              <div>
-                <div className="font-semibold text-sm">Workspace</div>
-                <div className="text-sm text-base-content/70">
-                  Ein geteilter Raum, wo alle Teilnehmer den gleichen Content sehen und gemeinsam arbeiten.
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <div className="text-2xl">🤝</div>
-              <div>
-                <div className="font-semibold text-sm">Web of Trust</div>
-                <div className="text-sm text-base-content/70">
-                  Verbinde dich mit Freunden per QR-Code. So kannst du Inhalte gezielt mit vertrauten Personen teilen.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Bottom spacer for mobile */}
+        <div className="h-8" />
       </div>
     </div>
   );

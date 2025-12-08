@@ -1,4 +1,4 @@
-import { useRepository, AppShell, OnboardingScreen } from 'narrative-ui';
+import { useRepository, AppShell } from 'narrative-ui';
 import { createEmptyMarketAppDoc } from './schema';
 import { MainView } from './components/MainView';
 
@@ -26,7 +26,6 @@ function App() {
       createEmptyDocument={createEmptyMarketAppDoc}
       storagePrefix="marketApp"
       enableUserDocument
-      onboardingComponent={OnboardingScreen}
       appTitle="Marktplatz"
     >
       {(props) => <MainView {...props} />}

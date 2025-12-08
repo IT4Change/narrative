@@ -8,7 +8,7 @@
  * Scales and compresses an image file to a data URL
  * @param file The image file to process
  * @param maxSize Maximum dimension (width/height) in pixels
- * @param quality JPEG quality (0-1)
+ * @param quality JPEG quality (0-1), only used for non-PNG images
  * @returns Promise resolving to { dataUrl, sizeKB } or throws error
  */
 export async function processImageFile(
@@ -22,6 +22,9 @@ export async function processImageFile(
       reject(new Error('File must be an image'));
       return;
     }
+
+    // Preserve PNG format for transparency support
+    const isPng = file.type === 'image/png';
 
     const reader = new FileReader();
 
@@ -47,6 +50,11 @@ export async function processImageFile(
         canvas.width = maxSize;
         canvas.height = maxSize;
 
+        // Clear canvas for transparency (important for PNG)
+        if (isPng) {
+          ctx.clearRect(0, 0, maxSize, maxSize);
+        }
+
         // Draw image (cropped and scaled)
         ctx.drawImage(
           img,
@@ -60,8 +68,10 @@ export async function processImageFile(
           maxSize
         );
 
-        // Convert to data URL
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        // Convert to data URL - preserve PNG format for transparency
+        const dataUrl = isPng
+          ? canvas.toDataURL('image/png')
+          : canvas.toDataURL('image/jpeg', quality);
 
         // Calculate size in KB
         const sizeBytes = Math.round((dataUrl.length * 3) / 4); // Approximate base64 size
