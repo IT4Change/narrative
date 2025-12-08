@@ -112,7 +112,7 @@ export function MapView({
       docHandle={mapData?.docHandle}
       documentId={documentId?.toString() ?? ''}
       currentUserDid={currentUserDid}
-      appTitle="Narrative Map"
+      appTitle="WoT Map"
       workspaceName="Map"
       hideWorkspaceSwitcher={false}
       onResetIdentity={onResetIdentity}

@@ -140,7 +140,7 @@ export function exportIdentityToFile(filename?: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename || `narrative-identity-${Date.now()}.json`;
+  a.download = filename || `wot-identity-${Date.now()}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

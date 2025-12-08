@@ -54,6 +54,7 @@ export {
   type UseUserDocumentResult,
 } from './hooks/useUserDocument';
 export { useProfileUrl } from './hooks/useProfileUrl';
+export { useDocumentTitle, generateLetterFavicon, generateHomeFavicon, type UseDocumentTitleOptions } from './hooks/useDocumentTitle';
 export {
   useCrossTabSync,
   notifyCrossTabSync,

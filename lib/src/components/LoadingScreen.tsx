@@ -13,13 +13,29 @@ export interface LoadingScreenProps {
   message?: string;
 }
 
-export function LoadingScreen({ message = 'Initialisiere...' }: LoadingScreenProps) {
+export function LoadingScreen({ message }: LoadingScreenProps) {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-base-200">
-      <div className="text-center">
-        <span className="loading loading-spinner loading-lg text-primary"></span>
-        <p className="mt-4 text-base-content">{message}</p>
-      </div>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        background: 'white',
+      }}
+    >
+      <svg viewBox="0 0 24 24" fill="none" style={{ width: '48px', height: '48px', animation: 'pulse 1.5s ease-in-out infinite' }}>
+        <path
+          d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+          fill="#e11d48"
+        />
+      </svg>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.15); opacity: 0.8; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -284,7 +300,7 @@ export function WorkspaceLoadingContent({
           {showCreateNew && onCreateNew && (
             <div className="pt-4 border-t border-base-300">
               <p className="text-sm text-base-content/60 mb-3">
-                Das Workspace-Dokument scheint nicht verfügbar zu sein.
+                Das lasen des Workspace-Dokument dauert länger als erwartet ...
               </p>
               <button
                 className="btn btn-primary btn-sm"

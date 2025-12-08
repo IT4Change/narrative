@@ -14,6 +14,7 @@ import type { DocHandle } from '@automerge/automerge-repo';
 import { useRepo } from '@automerge/automerge-repo-react-hooks';
 import { useAppContext, type AppContextValue } from '../hooks/useAppContext';
 import { useProfileUrl } from '../hooks/useProfileUrl';
+import { useDocumentTitle, generateLetterFavicon, generateHomeFavicon } from '../hooks/useDocumentTitle';
 import type { BaseDocument } from '../schema/document';
 import type { UserDocument } from '../schema/userDocument';
 import { removeWorkspace } from '../schema/userDocument';
@@ -257,6 +258,73 @@ export function AppLayout<TDoc extends BaseDocument<unknown>>({
       memberDids: Object.keys(doc.identities || {}),
     };
   }, [doc, workspaceName]);
+
+  // Effective workspace name and avatar for display
+  const effectiveWorkspaceName = workspaceInfo?.name || workspaceName;
+  const effectiveWorkspaceAvatar = workspaceInfo?.avatar;
+
+  // Check if we're in start state (no workspace)
+  const isStartState = contentState === 'start';
+  const isLoadingState = contentState === 'loading';
+
+  // Get workspace info from UserDocument for loading state (before doc is loaded)
+  const loadingWorkspaceInfo = useMemo(() => {
+    if (!isLoadingState || !workspaceLoading?.documentId || !userDoc?.workspaces) {
+      return null;
+    }
+    return userDoc.workspaces[workspaceLoading.documentId] || null;
+  }, [isLoadingState, workspaceLoading?.documentId, userDoc?.workspaces]);
+
+  // Dynamic browser title and favicon based on workspace or start state
+  const { titleToShow, faviconUrl } = useMemo(() => {
+    // Start state: show "Start - Web of Trust" with home icon
+    if (isStartState) {
+      return {
+        titleToShow: 'Start - Web of Trust',
+        faviconUrl: generateHomeFavicon(),
+      };
+    }
+
+    // Loading state: use workspace info from UserDocument if available
+    if (isLoadingState && loadingWorkspaceInfo) {
+      const name = loadingWorkspaceInfo.name;
+      const avatar = loadingWorkspaceInfo.avatar;
+      if (avatar) {
+        return { titleToShow: `${name} - Web of Trust`, faviconUrl: avatar };
+      }
+      if (name) {
+        return { titleToShow: `${name} - Web of Trust`, faviconUrl: generateLetterFavicon(name.charAt(0)) };
+      }
+    }
+
+    // Workspace state: show workspace name with avatar or letter
+    if (effectiveWorkspaceAvatar) {
+      return {
+        titleToShow: `${effectiveWorkspaceName} - Web of Trust`,
+        faviconUrl: effectiveWorkspaceAvatar,
+      };
+    }
+
+    // Generate letter favicon from workspace name
+    if (effectiveWorkspaceName) {
+      const letter = effectiveWorkspaceName.charAt(0);
+      return {
+        titleToShow: `${effectiveWorkspaceName} - Web of Trust`,
+        faviconUrl: generateLetterFavicon(letter),
+      };
+    }
+
+    return {
+      titleToShow: undefined,
+      faviconUrl: undefined,
+    };
+  }, [isStartState, isLoadingState, loadingWorkspaceInfo, effectiveWorkspaceAvatar, effectiveWorkspaceName]);
+
+  useDocumentTitle({
+    workspaceName: titleToShow,
+    workspaceAvatar: faviconUrl,
+    appName: appTitle,
+  });
 
   // When doc becomes ready and user is NOT a member, show join dialog
   useEffect(() => {
