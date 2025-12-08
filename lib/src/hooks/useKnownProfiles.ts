@@ -291,7 +291,17 @@ export function useKnownProfiles({
 
       try {
         console.log(`[useKnownProfiles] Calling repo.find() for: ${docUrl.substring(0, 30)}...`);
-        const handle = await repo.find<UserDocument>(docUrl as AutomergeUrl);
+
+        // repo.find() can block indefinitely in automerge-repo v2.x, so add a timeout
+        const findTimeoutMs = 60000; // 60 seconds
+        const findTimeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error(`repo.find() timeout after ${findTimeoutMs}ms`)), findTimeoutMs);
+        });
+
+        const handle = await Promise.race([
+          repo.find<UserDocument>(docUrl as AutomergeUrl),
+          findTimeoutPromise,
+        ]);
         console.log(`[useKnownProfiles] repo.find() returned handle for: ${docUrl.substring(0, 30)}...`);
 
         // Create change handler BEFORE reading doc to avoid race

@@ -89,7 +89,17 @@ export function QRScannerModal<TData = unknown>({
       try {
         // Load the UserDocument
         console.log('[QRScannerModal] Calling repo.find() for:', scannedUserDocUrl?.substring(0, 40));
-        const handle = await repo.find<UserDocument>(scannedUserDocUrl as AutomergeUrl);
+
+        // repo.find() can block indefinitely in automerge-repo v2.x, so add a timeout
+        const findTimeoutMs = 60000; // 60 seconds
+        const findTimeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error(`repo.find() timeout after ${findTimeoutMs}ms`)), findTimeoutMs);
+        });
+
+        const handle = await Promise.race([
+          repo.find<UserDocument>(scannedUserDocUrl as AutomergeUrl),
+          findTimeoutPromise,
+        ]);
         console.log('[QRScannerModal] repo.find() returned handle');
 
         // Function to update profile from document
