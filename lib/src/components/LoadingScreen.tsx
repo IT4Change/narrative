@@ -401,7 +401,7 @@ export function WorkspaceLoadingContent({
           {showCreateNew && onCreateNew && (
             <div className="pt-4 border-t border-base-300">
               <p className="text-sm text-base-content/60 mb-3">
-                Das lasen des Workspace-Dokument dauert länger als erwartet ...
+              Das Laden des Workspace-Dokuments dauert länger als erwartet...
               </p>
               <button
                 className="btn btn-primary btn-sm"

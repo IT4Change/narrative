@@ -53,6 +53,20 @@ export {
   type UseKnownProfilesOptions,
   type UseKnownProfilesResult,
 } from './hooks/useKnownProfiles';
+export { useKnownProfilesContext, useKnownProfilesContextOptional } from './hooks/useKnownProfilesContext';
+
+// Provider exports
+export {
+  KnownProfilesProvider,
+  KnownProfilesContext,
+  type KnownProfilesContextValue,
+  type KnownProfilesProviderProps,
+  type TrackedProfile,
+  type DocUrlEntry,
+  type ProfileLoadState,
+  MAX_2ND_DEGREE_PROFILES,
+  SOURCE_PRIORITY,
+} from './providers';
 export {
   useUserDocument,
   loadUserDocId,

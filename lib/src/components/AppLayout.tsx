@@ -30,6 +30,7 @@ import { WorkspaceLoadingContent } from './LoadingScreen';
 import { StartContent } from './StartContent';
 import { exportIdentityToFile, importIdentityFromFile, loadSharedIdentity } from '../utils/storage';
 import type { WorkspaceLoadingState, ContentState } from './AppShell';
+import { KnownProfilesProvider } from '../providers/KnownProfilesProvider';
 
 export interface AppLayoutProps<TDoc extends BaseDocument<unknown>> {
   /** The Automerge document */
@@ -200,7 +201,30 @@ function DefaultLoading() {
  * </AppLayout>
  * ```
  */
-export function AppLayout<TDoc extends BaseDocument<unknown>>({
+/**
+ * AppLayout - Main export that wraps content with KnownProfilesProvider
+ *
+ * This ensures all profile-related hooks have access to the context.
+ */
+export function AppLayout<TDoc extends BaseDocument<unknown>>(props: AppLayoutProps<TDoc>) {
+  const repo = useRepo();
+
+  return (
+    <KnownProfilesProvider
+      repo={repo}
+      userDoc={props.userDoc ?? null}
+      currentUserDid={props.currentUserDid}
+      workspaceDoc={props.doc ?? null}
+    >
+      <AppLayoutInner {...props} />
+    </KnownProfilesProvider>
+  );
+}
+
+/**
+ * AppLayoutInner - Inner component with actual layout logic
+ */
+function AppLayoutInner<TDoc extends BaseDocument<unknown>>({
   doc,
   docHandle,
   documentId,
