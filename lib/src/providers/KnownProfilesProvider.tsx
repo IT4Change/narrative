@@ -254,7 +254,7 @@ export function KnownProfilesProvider({
   }, [workspaceDoc?.identities]);
 
   // === Callback: Register external doc (from QR scanner) ===
-  const registerExternalDoc = useCallback((userDocUrl: string, expectedDid?: string) => {
+  const registerExternalDoc = useCallback((userDocUrl: string, expectedDid?: string, displayName?: string) => {
     setDocUrlRegistry((prev) => {
       if (prev.has(userDocUrl)) return prev;
 
@@ -268,6 +268,31 @@ export function KnownProfilesProvider({
       });
       return updated;
     });
+
+    // Create placeholder profile with scanned name if we have both DID and name
+    // This ensures the name from QR code is immediately available in all views
+    if (expectedDid && displayName) {
+      setProfiles((prev) => {
+        const existing = prev.get(expectedDid);
+        // Only create placeholder if no profile exists yet, or existing has no displayName
+        if (!existing || (!existing.displayName && existing.source === 'external')) {
+          const updated = new Map(prev);
+          updated.set(expectedDid, {
+            did: expectedDid,
+            displayName,
+            avatarUrl: undefined,
+            userDocUrl,
+            source: 'external',
+            signatureStatus: 'pending',
+            lastUpdated: Date.now(),
+            loadState: 'loading',
+            registeredAt: Date.now(),
+          });
+          return updated;
+        }
+        return prev;
+      });
+    }
   }, []);
 
   // === Callback: Handle loaded document (from UserDocLoader) ===

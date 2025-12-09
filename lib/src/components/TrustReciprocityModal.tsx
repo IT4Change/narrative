@@ -42,7 +42,7 @@ interface TrustReciprocityModalProps<TData = unknown> {
   /** All known profiles for reactive UI updates */
   knownProfiles?: Map<string, KnownProfile>;
   /** Register an external UserDoc URL for reactive updates (e.g., from QR scanner) */
-  registerExternalDoc?: (userDocUrl: string) => void;
+  registerExternalDoc?: (userDocUrl: string, expectedDid?: string, displayName?: string) => void;
   /** User document URL for QR code generation */
   userDocUrl?: string;
   /** Current user's UserDocument (reactive, for passing to QRScannerModal) */
@@ -91,7 +91,7 @@ export function TrustReciprocityModal<TData = unknown>({
     verifyAttestationSignature(pendingAttestations[currentIndex]).then(setSignatureStatus);
   }, [pendingAttestations, currentIndex]);
 
-  // Render signature status icon
+  // Render attestation signature status icon
   const renderSignatureIcon = (status: SignatureStatus) => {
     if (status === 'pending') {
       return <span className="loading loading-spinner loading-xs"></span>;
@@ -118,6 +118,37 @@ export function TrustReciprocityModal<TData = unknown>({
     );
   };
 
+  // Render profile signature badge (similar to QRScannerModal)
+  const renderProfileSignatureBadge = () => {
+    if (!profileSignatureStatus || profileSignatureStatus === 'pending') {
+      return (
+        <span className="tooltip tooltip-top" data-tip="Profil wird geladen...">
+          <span className="loading loading-spinner loading-xs"></span>
+        </span>
+      );
+    }
+    if (profileSignatureStatus === 'valid') {
+      return (
+        <span className="tooltip tooltip-top" data-tip="Profil verifiziert">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </span>
+      );
+    }
+    if (profileSignatureStatus === 'invalid') {
+      return (
+        <span className="tooltip tooltip-top" data-tip="Profil manipuliert!">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </span>
+      );
+    }
+    // 'missing' - no badge shown
+    return null;
+  };
+
   if (pendingAttestations.length === 0 || currentIndex >= pendingAttestations.length) {
     return null;
   }
@@ -130,6 +161,8 @@ export function TrustReciprocityModal<TData = unknown>({
   // Priority: knownProfiles > trustedUserProfiles > workspace identity > DID-based name
   const displayName = knownProfile?.displayName || trustedProfile?.displayName || workspaceProfile?.displayName || getDefaultDisplayName(trusterDid);
   const avatarUrl = knownProfile?.avatarUrl || trustedProfile?.avatarUrl || workspaceProfile?.avatarUrl;
+  // Profile signature status from knownProfiles
+  const profileSignatureStatus = knownProfile?.signatureStatus;
 
   const handleOpenScanner = () => {
     setShowScanner(true);
@@ -185,17 +218,7 @@ export function TrustReciprocityModal<TData = unknown>({
           <div className="text-center">
             <div className="flex items-center justify-center gap-2">
               <div className="font-bold text-lg">{displayName}</div>
-              <span
-                className="tooltip tooltip-top"
-                data-tip={
-                  signatureStatus === 'valid' ? `${displayName}s Signatur verifiziert` :
-                  signatureStatus === 'invalid' ? `${displayName}s Signatur ungültig!` :
-                  signatureStatus === 'missing' ? `${displayName}s Signatur fehlt (Legacy)` :
-                  `${displayName}s Signatur wird geprüft...`
-                }
-              >
-                {renderSignatureIcon(signatureStatus)}
-              </span>
+              {renderProfileSignatureBadge()}
             </div>
             <div className="text-xs text-base-content/50 break-all mt-2">
               {trusterDid}

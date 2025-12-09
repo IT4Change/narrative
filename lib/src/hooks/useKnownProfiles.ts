@@ -68,8 +68,12 @@ export interface UseKnownProfilesResult {
   getProfile: (did: string) => KnownProfile | undefined;
   /** Whether initial loading is in progress */
   isLoading: boolean;
-  /** Register an external UserDoc URL for reactive updates (e.g., from QR scanner) */
-  registerExternalDoc: (userDocUrl: string) => void;
+  /** Register an external UserDoc URL for reactive updates (e.g., from QR scanner)
+   * @param userDocUrl - The URL of the user's document
+   * @param expectedDid - The DID we expect the document to contain
+   * @param displayName - Optional display name from QR code (used as placeholder until document loads)
+   */
+  registerExternalDoc: (userDocUrl: string, expectedDid?: string, displayName?: string) => void;
 }
 
 // ============================================================================

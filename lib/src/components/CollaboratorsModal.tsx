@@ -75,7 +75,7 @@ interface CollaboratorsModalProps<TData = unknown> {
   /** User document URL for QR code generation */
   userDocUrl?: string;
   /** Register external doc for reactive profile loading */
-  registerExternalDoc?: (userDocUrl: string) => void;
+  registerExternalDoc?: (userDocUrl: string, expectedDid?: string, displayName?: string) => void;
 }
 
 type ViewTab = 'list' | 'graph';

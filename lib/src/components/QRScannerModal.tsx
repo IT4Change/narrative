@@ -27,8 +27,12 @@ interface QRScannerModalProps<TData = unknown> {
   onMutualTrustEstablished?: (friendDid: string, friendName: string) => void;
   /** Get profile from central known profiles (optional - enables reactive updates) */
   getProfile?: (did: string) => KnownProfile | undefined;
-  /** Register external doc for reactive profile loading (optional - call after QR scan) */
-  registerExternalDoc?: (userDocUrl: string) => void;
+  /** Register external doc for reactive profile loading (optional - call after QR scan)
+   * @param userDocUrl - The URL of the user's document
+   * @param expectedDid - The DID we expect the document to contain
+   * @param displayName - Optional display name from QR code (used as placeholder until document loads)
+   */
+  registerExternalDoc?: (userDocUrl: string, expectedDid?: string, displayName?: string) => void;
   /**
    * All known profiles from useAppContext (optional - enables reactive UI updates)
    * When this Map changes, the component re-renders with updated profile data
@@ -72,16 +76,17 @@ export function QRScannerModal<TData = unknown>({
     }
 
     // Register with central profile management for reactive updates
-    console.log('[QRScannerModal] registerExternalDoc available:', !!registerExternalDoc, 'userDocUrl:', scannedUserDocUrl?.substring(0, 30));
+    // Pass scannedDid and scannedName so the provider can create a placeholder profile
+    console.log('[QRScannerModal] registerExternalDoc available:', !!registerExternalDoc, 'userDocUrl:', scannedUserDocUrl?.substring(0, 30), 'scannedName:', scannedName);
     if (registerExternalDoc) {
-      console.log('[QRScannerModal] Calling registerExternalDoc with:', scannedUserDocUrl?.substring(0, 40));
-      registerExternalDoc(scannedUserDocUrl);
+      console.log('[QRScannerModal] Calling registerExternalDoc with:', scannedUserDocUrl?.substring(0, 40), 'did:', scannedDid?.substring(0, 30), 'name:', scannedName);
+      registerExternalDoc(scannedUserDocUrl, scannedDid, scannedName ?? undefined);
       setSignatureStatus('loading');
     } else {
       console.warn('[QRScannerModal] registerExternalDoc is undefined - cannot register for reactive updates');
       setSignatureStatus('missing');
     }
-  }, [scannedDid, scannedUserDocUrl, registerExternalDoc]);
+  }, [scannedDid, scannedUserDocUrl, scannedName, registerExternalDoc]);
 
   // React to profile updates from knownProfiles (loaded by useKnownProfiles)
   useEffect(() => {

@@ -122,7 +122,7 @@ export interface AppNavbarProps<TData = unknown> {
   getProfile?: (did: string) => KnownProfile | undefined;
 
   /** Register external doc for reactive profile loading */
-  registerExternalDoc?: (userDocUrl: string) => void;
+  registerExternalDoc?: (userDocUrl: string, expectedDid?: string, displayName?: string) => void;
 }
 
 export function AppNavbar<TData = unknown>({

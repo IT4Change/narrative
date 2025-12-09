@@ -260,8 +260,11 @@ export interface AppContextValue<TData = unknown> {
   /**
    * Register an external UserDoc URL for reactive profile updates
    * Use this when loading a profile outside of trust relationships (e.g., QR scanner preview)
+   * @param userDocUrl - The URL of the user's document
+   * @param expectedDid - The DID we expect the document to contain
+   * @param displayName - Optional display name from QR code (used as placeholder until document loads)
    */
-  registerExternalDoc: (userDocUrl: string) => void;
+  registerExternalDoc: (userDocUrl: string, expectedDid?: string, displayName?: string) => void;
 
   // Handlers
   handleSwitchWorkspace: (workspaceId: string) => void;

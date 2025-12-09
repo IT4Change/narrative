@@ -39,8 +39,12 @@ export interface KnownProfilesContextValue {
   getProfile: (did: string) => TrackedProfile | undefined;
   /** Whether initial 1st-degree loading is in progress */
   isLoading: boolean;
-  /** Register an external UserDoc URL for reactive updates (e.g., from QR scanner) */
-  registerExternalDoc: (userDocUrl: string, expectedDid?: string) => void;
+  /** Register an external UserDoc URL for reactive updates (e.g., from QR scanner)
+   * @param userDocUrl - The URL of the user's document
+   * @param expectedDid - The DID we expect the document to contain
+   * @param displayName - Optional display name from QR code (used as placeholder until document loads)
+   */
+  registerExternalDoc: (userDocUrl: string, expectedDid?: string, displayName?: string) => void;
 }
 
 /** Props for KnownProfilesProvider */
