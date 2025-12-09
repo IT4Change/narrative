@@ -314,7 +314,14 @@ export function QRScannerModal<TData = unknown>({
     // Use both getProfile function and knownProfiles Map for reactive updates
     const knownProfile = getProfile?.(scannedDid) ?? knownProfiles?.get(scannedDid);
     const workspaceProfile = doc?.identities?.[scannedDid];
-    const displayName = knownProfile?.displayName || loadedProfile?.displayName || workspaceProfile?.displayName || getDefaultDisplayName(scannedDid);
+
+    // Check if we're still loading profile data
+    const isProfileLoading = signatureStatus === 'loading' || signatureStatus === 'waiting' ||
+      (knownProfile?.signatureStatus === 'pending' && !knownProfile?.displayName);
+
+    // Only show real name if we have it, otherwise show loading placeholder
+    const displayName = knownProfile?.displayName || loadedProfile?.displayName || workspaceProfile?.displayName ||
+      (isProfileLoading ? 'Profil wird geladen...' : getDefaultDisplayName(scannedDid));
     const avatarUrl = knownProfile?.avatarUrl || loadedProfile?.avatarUrl || workspaceProfile?.avatarUrl;
 
     // Debug: Log profile sources to understand what's happening
@@ -432,11 +439,20 @@ export function QRScannerModal<TData = unknown>({
             </div>
           )}
 
-          <div className="alert alert-info py-2 justify-center text-center">
-            <span className="text-sm">
-              Hiermit bestätige ich die Identität von {displayName} und füge sie in mein Netzwerk hinzu.
-            </span>
-          </div>
+          {isProfileLoading ? (
+            <div className="alert alert-warning py-2 justify-center text-center">
+              <span className="text-sm">
+                <span className="loading loading-dots loading-xs mr-1"></span>
+                Profil wird im Netzwerk gesucht.
+              </span>
+            </div>
+          ) : (
+            <div className="alert alert-success py-2 justify-center text-center">
+              <span className="text-sm">
+                Hiermit bestätige ich die Identität von <span className="font-semibold">{displayName}</span> und füge sie in mein Netzwerk hinzu.
+              </span>
+            </div>
+          )}
 
           <div className="modal-action">
             <button className="btn" onClick={handleClose}>
