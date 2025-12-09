@@ -63,6 +63,12 @@ export function UserDocLoader({
 
     const docDid = doc.did;
 
+    // Wait for DID to be available (new docs may sync incrementally)
+    if (!docDid) {
+      console.log(`[UserDocLoader] Doc loaded but no DID yet for ${url.substring(0, 30)} - waiting for sync`);
+      return;
+    }
+
     // Validate expectedDid if provided
     if (expectedDid && docDid !== expectedDid) {
       console.warn(
@@ -91,7 +97,7 @@ export function UserDocLoader({
         signature: doc.profile?.signature,
       });
     }
-  }, [doc, url, expectedDid, onLoaded, doc?.profile?.displayName, doc?.profile?.avatarUrl, doc?.profile?.updatedAt, doc?.profile?.signature]);
+  }, [doc, doc?.did, url, expectedDid, onLoaded, doc?.profile?.displayName, doc?.profile?.avatarUrl, doc?.profile?.updatedAt, doc?.profile?.signature]);
 
   // This component renders nothing - it's invisible
   return null;
