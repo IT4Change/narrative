@@ -265,7 +265,7 @@ export function NarrativeModule({
 
       {/* Floating Import Button */}
       <button
-        className="btn btn-neutral gap-2 fixed bottom-20 md:bottom-6 left-6 shadow-lg shadow-black/30 z-10"
+        className="btn btn-outline gap-2 fixed bottom-20 md:bottom-6 left-6 shadow-lg shadow-black/30 z-10"
         onClick={() => setShowImportModal(true)}
         title="Import"
       >
